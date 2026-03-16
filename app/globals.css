@@ -1,0 +1,38 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --bg: #f5f3ef;
+  --surface: #ffffff;
+  --border: #c8c4bb;
+  --border-light: #e0ddd6;
+  --text: #1a1a1a;
+  --text-mid: #5a5a5a;
+  --text-light: #8a8a8a;
+  --correct: #2a6e3f;
+  --wrong: #c43e1c;
+  --correct-bg: #eaf5ee;
+  --wrong-bg: #f5eaea;
+  --tls: #12173F;
+  --mjs: #F04E2C;
+  --jrs: #1E4D42;
+}
+
+body {
+  font-family: 'Suisse Intl', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+table {
+  border-collapse: collapse;
+}

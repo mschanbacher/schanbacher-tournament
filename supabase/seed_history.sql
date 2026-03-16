@@ -1,0 +1,62 @@
+-- Schanbacher Tournament — Historical Data Import
+-- Run this AFTER schema.sql in the Supabase SQL Editor
+-- This imports all 17 seasons of bracket data (2008-2025)
+
+-- First, insert all tournament years
+INSERT INTO tournaments (year, status, champion_player) VALUES
+(2008, 'complete', 'MJS'),
+(2009, 'complete', 'TLS'),
+(2010, 'complete', 'MJS'),
+(2011, 'complete', 'MJS'),
+(2012, 'complete', 'TLS'),
+(2013, 'complete', 'TLS'),
+(2014, 'complete', 'MJS'),
+(2015, 'complete', 'MJS'),
+(2016, 'complete', 'TLS'),
+(2017, 'complete', 'MJS'),
+(2018, 'complete', 'MJS'),
+(2019, 'complete', 'TLS'),
+(2021, 'complete', 'MJS'),
+(2022, 'complete', 'TLS'),
+(2023, 'complete', 'MJS'),
+(2024, 'complete', 'TLS'),
+(2025, 'complete', 'TLS');
+
+-- Insert season results (scores by round)
+INSERT INTO season_results (year, player_id, total_score, r1_score, r2_score, r3_score, r4_score, r5_score, r6_score) VALUES
+(2025, 'TLS', 92, 26, 22, 21, 12, 5, 6),
+(2025, 'MJS', 69, 22, 24, 15, 8, 0, 0),
+(2025, 'JRS', 77, 20, 26, 9, 12, 10, 0),
+(2024, 'TLS', 86, 23, 26, 9, 12, 10, 6),
+(2024, 'MJS', 79, 18, 26, 9, 16, 10, 0),
+(2024, 'JRS', 71, 21, 22, 9, 8, 5, 6),
+(2023, 'TLS', 72, 24, 18, 6, 8, 10, 6),
+(2023, 'MJS', 74, 21, 20, 9, 8, 10, 6),
+(2022, 'TLS', 93, 26, 20, 15, 16, 10, 6),
+(2022, 'MJS', 63, 22, 20, 12, 4, 5, 0),
+(2021, 'TLS', 68, 22, 18, 15, 8, 5, 0),
+(2021, 'MJS', 82, 22, 26, 12, 12, 10, 0),
+(2019, 'TLS', 100, 25, 28, 15, 16, 10, 6),
+(2019, 'MJS', 98, 29, 28, 18, 12, 5, 6),
+(2018, 'TLS', 73, 23, 20, 12, 12, 0, 6),
+(2018, 'MJS', 88, 26, 20, 18, 8, 10, 6),
+(2017, 'TLS', 72, 28, 16, 15, 8, 5, 0),
+(2017, 'MJS', 78, 23, 18, 15, 12, 10, 0),
+(2016, 'TLS', 81, 24, 20, 18, 8, 5, 6),
+(2016, 'MJS', 80, 25, 24, 18, 8, 5, 0),
+(2015, 'TLS', 75, 23, 20, 15, 12, 5, 0),
+(2015, 'MJS', 81, 23, 20, 21, 12, 5, 0),
+(2014, 'TLS', 76, 27, 20, 12, 12, 5, 0),
+(2014, 'MJS', 79, 28, 22, 12, 12, 5, 0),
+(2013, 'TLS', 87, 24, 26, 9, 12, 10, 6),
+(2013, 'MJS', 80, 24, 20, 12, 8, 10, 6),
+(2012, 'TLS', 76, 20, 22, 15, 8, 5, 6),
+(2012, 'MJS', 66, 18, 18, 12, 8, 10, 0),
+(2011, 'TLS', 74, 23, 14, 18, 8, 5, 6),
+(2011, 'MJS', 75, 25, 20, 12, 8, 10, 0),
+(2010, 'TLS', 65, 27, 20, 12, 0, 0, 6),
+(2010, 'MJS', 77, 21, 22, 21, 8, 5, 0),
+(2009, 'TLS', 85, 22, 26, 18, 8, 5, 6),
+(2009, 'MJS', 73, 19, 22, 15, 12, 5, 0),
+(2008, 'TLS', 78, 22, 20, 18, 8, 10, 0),
+(2008, 'MJS', 86, 25, 20, 18, 12, 5, 6);
