@@ -38,9 +38,9 @@ function GameCell({game,roundIdx,currentPlayer,allPlayers}){
       {!isPending&&isPicked&&<div style={{width:3,height:13,marginRight:5,flexShrink:0,background:isW?C.correct:C.wrong}}/>}
       {isPending&&isPicked&&<div style={{width:3,height:13,marginRight:5,flexShrink:0,background:C.text}}/>}
       {!isPicked&&<div style={{width:8,flexShrink:0}}/>}
-      <div style={{flex:1,overflow:"hidden",minWidth:0}}><span style={{fontSize:11,fontWeight:isW||(isPending&&isPicked)?700:400,color:isPending?C.text:(isW?C.text:C.textLight),whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",display:"block"}}>{seed!=null&&<span style={{color:C.textLight,fontSize:10,marginRight:3,fontWeight:400}}>{seed}</span>}{team}</span></div>
-      <div style={{display:"flex",gap:2,marginLeft:4,marginRight:4,flexShrink:0}}>{otherPicks.map(op=><span key={op} style={{fontSize:8,fontWeight:700,letterSpacing:0.5,color:C.text,opacity:0.45}}>{op[0]}</span>)}</div>
-      <span style={{fontSize:11,fontWeight:isW?700:400,color:isPending?C.textLight:(isW?C.text:C.textLight),fontVariantNumeric:"tabular-nums",minWidth:20,textAlign:"right",flexShrink:0}}>{score??""}</span>
+      <div style={{flex:1,overflow:"hidden",minWidth:0}}><span style={{fontSize:11,fontWeight:isW||(isPending&&isPicked)?700:400,color:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",display:"block"}}>{seed!=null&&<span style={{color:C.textLight,fontSize:10,marginRight:3,fontWeight:400}}>{seed}</span>}{team}</span></div>
+      <div style={{display:"flex",gap:2,marginLeft:4,marginRight:4,flexShrink:0}}>{otherPicks.map(op=><span key={op} style={{fontSize:8,fontWeight:700,letterSpacing:0.5,color:C.text,opacity:0.7}}>{op[0]}</span>)}</div>
+      <span style={{fontSize:11,fontWeight:isW?700:400,color:isPending?C.textLight:C.text,fontVariantNumeric:"tabular-nums",minWidth:20,textAlign:"right",flexShrink:0}}>{score??""}</span>
     </div>);
   };
   return(<div style={{display:"flex",alignItems:"center"}}>
