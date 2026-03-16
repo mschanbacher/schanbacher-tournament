@@ -95,7 +95,7 @@ function Dashboard({seasonResults,tournaments}){
 function BracketView({currentPlayer,activeYear}){
   const[bracket,setBracket]=useState(null);const[loading,setLoading]=useState(true);
   useEffect(()=>{if(activeYear)fetchBracketForYear(activeYear).then(b=>{setBracket(b);setLoading(false);}).catch(e=>{console.error(e);setLoading(false);});},[activeYear]);
-  if(loading||!bracket)return<Loading/>;console.log('Bracket data:',JSON.stringify({regions:Object.keys(bracket.regions),r1Counts:Object.fromEntries(Object.entries(bracket.regions).map(([k,v])=>[k,(v.r1||[]).length])),playIn:bracket.play_in?.length,ff:bracket.ff?.length}));
+  if(loading||!bracket)return<Loading/>;
   return(<div style={{padding:"32px 40px",maxWidth:1200,margin:"0 auto"}}><div style={{marginBottom:16}}><Lbl>{activeYear} NCAA Tournament</Lbl><h2 style={{fontSize:28,color:C.text,margin:"4px 0",fontWeight:700,lineHeight:1}}>Bracket</h2></div><BracketDisplay bracket={bracket} currentPlayer={currentPlayer}/></div>);
 }
 
