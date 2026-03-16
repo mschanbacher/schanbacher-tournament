@@ -26,15 +26,23 @@ function Lbl({children}){return<div style={{fontSize:9,letterSpacing:3,color:C.t
 function Loading(){return<div style={{padding:"60px 40px",textAlign:"center",color:C.textLight,fontSize:13}}>Loading...</div>}
 
 function GameCell({game,roundIdx,currentPlayer,allPlayers}){
-  if(!game||(!game.t1&&!game.t2))return(<div style={{display:"flex",alignItems:"center"}}><div style={{width:200,height:44,border:`1px dashed ${C.borderLight}`,background:C.bg,display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:10,color:C.textLight,letterSpacing:1}}>TBD</span></div><div style={{width:24}}/></div>);
+  if(!game||(!game.t1&&!game.t2))return(<div style={{display:"flex",alignItems:"center"}}><div style={{width:200,height:44,border:"1px dashed #e0ddd6",background:"#f5f3ef",display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:10,color:C.textLight,letterSpacing:1}}>TBD</span></div><div style={{width:24}}/></div>);
   const isPending=game.w===null||game.w===undefined;const pts=RP[roundIdx]||0;
   const otherPlayers=(allPlayers||[]).filter(p=>p!==currentPlayer);
   const myPick=game.picks?.[currentPlayer];const gotIt=myPick===game.w;
+  // Pick visibility: hide other picks if tipoff hasn't passed
+  const tipoff=game.tipoff||game.tipoff_time;
+  const tippedOff=tipoff?new Date(tipoff)<=new Date():(!isPending);
+  // Determine if picks are split
+  const allPicks=allPlayers.map(p=>game.picks?.[p]).filter(Boolean);
+  const uniquePicks=new Set(allPicks);
+  const isSplit=tippedOff&&uniquePicks.size>1;
   const TeamRow=({team,score,seed,isTop})=>{
     if(!team)return null;const isW=game.w===team;const isPicked=myPick===team;
-    const otherPicks=otherPlayers.map(op=>game.picks?.[op]===team?op:null).filter(Boolean);
+    // Only show other players' initials if tipoff has passed
+    const otherPicks=tippedOff?otherPlayers.map(op=>game.picks?.[op]===team?op:null).filter(Boolean):[];
     let bg=C.surface;if(!isPending){if(isPicked&&isW)bg=C.correctBg;else if(isPicked&&!isW)bg=C.wrongBg;}
-    return(<div style={{display:"flex",alignItems:"center",padding:"3px 6px",height:20,background:bg,borderTop:isTop?"none":`1px solid ${C.borderLight}`}}>
+    return(<div style={{display:"flex",alignItems:"center",padding:"3px 6px",height:20,background:bg,borderTop:isTop?"none":"1px solid "+C.borderLight}}>
       {!isPending&&isPicked&&<div style={{width:3,height:13,marginRight:5,flexShrink:0,background:isW?C.correct:C.wrong}}/>}
       {isPending&&isPicked&&<div style={{width:3,height:13,marginRight:5,flexShrink:0,background:C.text}}/>}
       {!isPicked&&<div style={{width:8,flexShrink:0}}/>}
@@ -44,11 +52,12 @@ function GameCell({game,roundIdx,currentPlayer,allPlayers}){
     </div>);
   };
   return(<div style={{display:"flex",alignItems:"center"}}>
-    <div style={{width:200,border:`1px solid ${isPending?C.borderLight:C.border}`,background:isPending?C.bg:C.surface,opacity:isPending?0.65:1}}>
+    {isSplit?<div style={{width:24,height:44,background:"#C6982B",flexShrink:0}}/>:<div style={{width:24,flexShrink:0}}/>}
+    <div style={{width:200,border:"1px solid "+(isPending?C.borderLight:C.border),background:isPending?C.bg:C.surface,opacity:isPending?0.65:1,borderLeft:isSplit?"none":undefined}}>
       <TeamRow team={game.t1} score={game.sc1} seed={game.s1} isTop={true}/>
       <TeamRow team={game.t2} score={game.sc2} seed={game.s2} isTop={false}/>
     </div>
-    {!isPending&&myPick?(<div style={{width:24,height:44,display:"flex",alignItems:"center",justifyContent:"center",background:gotIt?C.correct:C.wrong,color:"#fff",fontSize:10,fontWeight:700,fontVariantNumeric:"tabular-nums",borderTop:`1px solid ${gotIt?C.correct:C.wrong}`,borderBottom:`1px solid ${gotIt?C.correct:C.wrong}`,borderRight:`1px solid ${gotIt?C.correct:C.wrong}`}}>{gotIt?`+${pts}`:"0"}</div>):(<div style={{width:24}}/>)}
+    {!isPending&&myPick?(<div style={{width:24,height:44,display:"flex",alignItems:"center",justifyContent:"center",background:gotIt?C.correct:C.wrong,color:"#fff",fontSize:10,fontWeight:700,fontVariantNumeric:"tabular-nums",borderTop:"1px solid "+(gotIt?C.correct:C.wrong),borderBottom:"1px solid "+(gotIt?C.correct:C.wrong),borderRight:"1px solid "+(gotIt?C.correct:C.wrong)}}>{gotIt?"+"+pts:"0"}</div>):(<div style={{width:24}}/>)}
   </div>);
 }
 
