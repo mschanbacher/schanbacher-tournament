@@ -10,6 +10,18 @@ const C = {
 const RN=["1st Round","2nd Round","Sweet 16","Elite 8","Final Four","Championship"];
 const RP=[1,1,2,3,4,5,6];const RMAX=[36,32,24,16,10,6];const PLAYERS_ALL=["TLS","MJS","JRS"];
 
+
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+  return isMobile;
+}
+
 function Lbl({children}){return<div style={{fontSize:9,letterSpacing:3,color:C.textLight,textTransform:"uppercase",fontWeight:600,marginBottom:12}}>{children}</div>}
 function Loading(){return<div style={{padding:"60px 40px",textAlign:"center",color:C.textLight,fontSize:13}}>Loading...</div>}
 
@@ -65,7 +77,7 @@ function BracketDisplay({bracket,currentPlayer}){
       <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:3,height:12,background:C.wrong}}/> Wrong</div>
       <span>Initials = other players</span>
     </div>
-    <div style={{display:"flex",gap:0,marginBottom:24,borderBottom:`1px solid ${C.border}`,flexWrap:"wrap"}}>
+    <div style={{display:"flex",gap:0,marginBottom:24,borderBottom:`1px solid ${C.border}`,overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
       {(bracket.play_in?.length>0)&&<button onClick={()=>{setShowF4(true);setShowFF(false);setRegion(null);}} style={{background:"none",border:"none",borderBottom:showF4?`2px solid ${C.text}`:"2px solid transparent",color:showF4?C.text:C.textLight,padding:"8px 16px",cursor:"pointer",fontSize:12,fontWeight:600,letterSpacing:1,textTransform:"uppercase",fontFamily:"inherit",marginBottom:-1}}>First Four</button>}
       {regionNames.map(r=><button key={r} onClick={()=>{setRegion(r);setShowFF(false);setShowF4(false);}} style={{background:"none",border:"none",borderBottom:region===r&&!showFF&&!showF4?`2px solid ${C.text}`:"2px solid transparent",color:region===r&&!showFF&&!showF4?C.text:C.textLight,padding:"8px 16px",cursor:"pointer",fontSize:12,fontWeight:600,letterSpacing:1,textTransform:"uppercase",fontFamily:"inherit",marginBottom:-1}}>{r}</button>)}
       <button onClick={()=>{setShowFF(true);setShowF4(false);setRegion(null);}} style={{background:"none",border:"none",borderBottom:showFF?`2px solid ${C.text}`:"2px solid transparent",color:showFF?C.text:C.textLight,padding:"8px 16px",cursor:"pointer",fontSize:12,fontWeight:600,letterSpacing:1,textTransform:"uppercase",fontFamily:"inherit",marginBottom:-1}}>Final Four</button>
@@ -78,29 +90,29 @@ function BracketDisplay({bracket,currentPlayer}){
   </div>);
 }
 
-function Dashboard({seasonResults,tournaments}){
+function Dashboard({seasonResults,tournaments,mob}){
   if(!seasonResults?.length)return<Loading/>;
   const years=[...new Set(seasonResults.map(r=>r.year))].sort((a,b)=>b-a);const latestYear=years[0];
   const latest=seasonResults.filter(r=>r.year===latestYear).sort((a,b)=>b.total_score-a.total_score);
   const latestTourney=tournaments?.find(t=>t.year===latestYear);const isFinished=latestTourney?.status==='complete';
   const champCounts={};(tournaments||[]).filter(t=>t.status==='complete'&&t.champion_player).forEach(t=>{champCounts[t.champion_player]=(champCounts[t.champion_player]||0)+1;});
-  return(<div style={{padding:"32px 40px",maxWidth:960,margin:"0 auto"}}>
+  return(<div style={{padding:mob?"20px 16px":"32px 40px",maxWidth:960,margin:"0 auto"}}>
     <div style={{marginBottom:40}}><Lbl>{isFinished?"Final Results":"Current Standings"}</Lbl><h2 style={{fontSize:32,color:C.text,margin:"4px 0 0",fontWeight:700,lineHeight:1}}>{latestYear}</h2>{isFinished&&latest[0]&&<div style={{fontSize:13,color:C.textMid,marginTop:6}}>Champion: <span style={{fontWeight:700,color:C[latest[0].player_id]}}>{latest[0].player_id}</span></div>}{!isFinished&&<div style={{fontSize:12,color:C.textMid,marginTop:6}}>Tournament in progress</div>}</div>
     <div style={{marginBottom:40}}>{latest.map((pl,i)=>(<div key={pl.player_id} style={{display:"flex",alignItems:"baseline",padding:"10px 0",borderBottom:`1px solid ${C.borderLight}`}}><span style={{width:24,fontSize:12,color:C.textLight,fontVariantNumeric:"tabular-nums"}}>{i+1}.</span><span style={{width:48,fontSize:14,fontWeight:700,color:C[pl.player_id]||C.text,letterSpacing:1}}>{pl.player_id}</span><div style={{flex:1,height:4,background:C.borderLight,marginRight:16}}><div style={{height:"100%",width:`${(pl.total_score/124)*100}%`,background:C[pl.player_id]||C.text,opacity:0.5}}/></div><span style={{fontSize:20,fontWeight:700,color:i===0?C.text:C.textMid,fontVariantNumeric:"tabular-nums",minWidth:36,textAlign:"right"}}>{pl.total_score}</span></div>))}</div>
-    <div style={{marginBottom:40}}><Lbl>Round Breakdown</Lbl><table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr style={{borderBottom:`2px solid ${C.text}`}}><th style={{textAlign:"left",padding:"6px 0",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>PLAYER</th>{RN.map((r,i)=><th key={r} style={{textAlign:"right",padding:"6px 6px",fontSize:9,color:C.textLight,letterSpacing:1,fontWeight:600}}>{r.toUpperCase()}<br/><span style={{fontWeight:400}}>{[1,2,3,4,5,6][i]}pt/{RMAX[i]}</span></th>)}<th style={{textAlign:"right",padding:"6px 0",fontSize:10,color:C.text,fontWeight:700}}>TOTAL</th></tr></thead><tbody>{latest.map((pl,pi)=>{const rounds=[pl.r1_score,pl.r2_score,pl.r3_score,pl.r4_score,pl.r5_score,pl.r6_score];return(<tr key={pl.player_id} style={{borderBottom:`1px solid ${C.borderLight}`}}><td style={{padding:"8px 0",fontWeight:700,fontSize:13,color:C[pl.player_id]||C.text,letterSpacing:1}}>{pl.player_id}</td>{rounds.map((v,i)=><td key={i} style={{textAlign:"right",padding:"8px 6px",fontSize:13,fontVariantNumeric:"tabular-nums",color:v==null||v===0?C.textLight:v===RMAX[i]?C.correct:C.text,fontWeight:v===RMAX[i]?700:400}}>{v??0}</td>)}<td style={{textAlign:"right",padding:"8px 0",fontSize:16,fontWeight:700,color:pi===0?C.text:C.textMid,fontVariantNumeric:"tabular-nums"}}>{pl.total_score}</td></tr>);})}</tbody></table></div>
+    <div style={{marginBottom:40}}><Lbl>Round Breakdown</Lbl><div style={{overflowX:mob?"auto":"visible",WebkitOverflowScrolling:"touch"}}><table style={{width:"100%",borderCollapse:"collapse",minWidth:mob?600:"auto"}}><thead><tr style={{borderBottom:`2px solid ${C.text}`}}><th style={{textAlign:"left",padding:"6px 0",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>PLAYER</th>{RN.map((r,i)=><th key={r} style={{textAlign:"right",padding:"6px 6px",fontSize:9,color:C.textLight,letterSpacing:1,fontWeight:600}}>{r.toUpperCase()}<br/><span style={{fontWeight:400}}>{[1,2,3,4,5,6][i]}pt/{RMAX[i]}</span></th>)}<th style={{textAlign:"right",padding:"6px 0",fontSize:10,color:C.text,fontWeight:700}}>TOTAL</th></tr></thead><tbody>{latest.map((pl,pi)=>{const rounds=[pl.r1_score,pl.r2_score,pl.r3_score,pl.r4_score,pl.r5_score,pl.r6_score];return(<tr key={pl.player_id} style={{borderBottom:`1px solid ${C.borderLight}`}}><td style={{padding:"8px 0",fontWeight:700,fontSize:13,color:C[pl.player_id]||C.text,letterSpacing:1}}>{pl.player_id}</td>{rounds.map((v,i)=><td key={i} style={{textAlign:"right",padding:"8px 6px",fontSize:13,fontVariantNumeric:"tabular-nums",color:v==null||v===0?C.textLight:v===RMAX[i]?C.correct:C.text,fontWeight:v===RMAX[i]?700:400}}>{v??0}</td>)}<td style={{textAlign:"right",padding:"8px 0",fontSize:16,fontWeight:700,color:pi===0?C.text:C.textMid,fontVariantNumeric:"tabular-nums"}}>{pl.total_score}</td></tr>);})}</tbody></table></div>
     <Lbl>All-Time Championships</Lbl><div style={{display:"flex",gap:40}}>{Object.entries(champCounts).sort((a,b)=>b[1]-a[1]).map(([p,c])=>(<div key={p}><div style={{fontSize:36,fontWeight:700,color:C[p]||C.text,fontVariantNumeric:"tabular-nums"}}>{c}</div><div style={{fontSize:12,color:C.textLight,letterSpacing:1,fontWeight:600}}>{p}</div></div>))}</div>
   </div>);
 }
 
-function BracketView({currentPlayer,activeYear}){
+function BracketView({currentPlayer,activeYear,mob}){
   const[bracket,setBracket]=useState(null);const[loading,setLoading]=useState(true);
   useEffect(()=>{if(activeYear)fetchBracketForYear(activeYear).then(b=>{setBracket(b);setLoading(false);}).catch(e=>{console.error(e);setLoading(false);});},[activeYear]);
   if(loading||!bracket)return<Loading/>;
-  return(<div style={{padding:"32px 40px",maxWidth:1200,margin:"0 auto"}}><div style={{marginBottom:16}}><Lbl>{activeYear} NCAA Tournament</Lbl><h2 style={{fontSize:28,color:C.text,margin:"4px 0",fontWeight:700,lineHeight:1}}>Bracket</h2></div><BracketDisplay bracket={bracket} currentPlayer={currentPlayer}/></div>);
+  return(<div style={{padding:mob?"20px 16px":"32px 40px",maxWidth:1200,margin:"0 auto"}}><div style={{marginBottom:16}}><Lbl>{activeYear} NCAA Tournament</Lbl><h2 style={{fontSize:28,color:C.text,margin:"4px 0",fontWeight:700,lineHeight:1}}>Bracket</h2></div><BracketDisplay bracket={bracket} currentPlayer={currentPlayer}/></div>);
 }
 
 // ─── PICKS PAGE — the critical new feature ───
-function PicksView({currentPlayer,activeYear,tournaments}){
+function PicksView({currentPlayer,activeYear,tournaments,mob}){
   const[games,setGames]=useState([]);const[myPicks,setMyPicks]=useState({});const[submitted,setSubmitted]=useState(false);
   const[loading,setLoading]=useState(true);const[submitting,setSubmitting]=useState(false);
   const[seconds,setSeconds]=useState(0);
@@ -189,10 +201,10 @@ function PicksView({currentPlayer,activeYear,tournaments}){
   }
 
   if(loading)return<Loading/>;
-  if(isComplete)return(<div style={{padding:"32px 40px",maxWidth:560,margin:"0 auto"}}><div style={{marginBottom:32}}><Lbl>{currentPlayer}</Lbl><h2 style={{fontSize:28,color:C.text,margin:"4px 0",fontWeight:700,lineHeight:1}}>Picks</h2></div><div style={{padding:"48px 0",textAlign:"center"}}><div style={{fontSize:14,color:C.textMid}}>The {activeYear} tournament is complete.</div><div style={{fontSize:13,color:C.textLight,marginTop:8}}>Check the Bracket tab to review all picks and results.</div></div></div>);
-  if(games.length===0)return(<div style={{padding:"32px 40px",maxWidth:560,margin:"0 auto"}}><div style={{marginBottom:32}}><Lbl>{currentPlayer}</Lbl><h2 style={{fontSize:28,color:C.text,margin:"4px 0",fontWeight:700,lineHeight:1}}>Picks</h2></div><div style={{padding:"48px 0",textAlign:"center"}}><div style={{fontSize:14,color:C.textMid}}>Waiting for matchups.</div><div style={{fontSize:13,color:C.textLight,marginTop:8}}>Next picks will be available once the current round is complete.</div></div></div>);
+  if(isComplete)return(<div style={{padding:mob?"20px 16px":"32px 40px",maxWidth:560,margin:"0 auto"}}><div style={{marginBottom:32}}><Lbl>{currentPlayer}</Lbl><h2 style={{fontSize:28,color:C.text,margin:"4px 0",fontWeight:700,lineHeight:1}}>Picks</h2></div><div style={{padding:"48px 0",textAlign:"center"}}><div style={{fontSize:14,color:C.textMid}}>The {activeYear} tournament is complete.</div><div style={{fontSize:13,color:C.textLight,marginTop:8}}>Check the Bracket tab to review all picks and results.</div></div></div>);
+  if(games.length===0)return(<div style={{padding:mob?"20px 16px":"32px 40px",maxWidth:560,margin:"0 auto"}}><div style={{marginBottom:32}}><Lbl>{currentPlayer}</Lbl><h2 style={{fontSize:28,color:C.text,margin:"4px 0",fontWeight:700,lineHeight:1}}>Picks</h2></div><div style={{padding:"48px 0",textAlign:"center"}}><div style={{fontSize:14,color:C.textMid}}>Waiting for matchups.</div><div style={{fontSize:13,color:C.textLight,marginTop:8}}>Next picks will be available once the current round is complete.</div></div></div>);
 
-  return(<div style={{padding:"32px 40px",maxWidth:560,margin:"0 auto"}}>
+  return(<div style={{padding:mob?"20px 16px":"32px 40px",maxWidth:560,margin:"0 auto"}}>
     <div style={{marginBottom:24}}><Lbl>{currentPlayer}</Lbl><h2 style={{fontSize:28,color:C.text,margin:"4px 0",fontWeight:700,lineHeight:1}}>{roundNames[currentRound]} Picks</h2><div style={{fontSize:12,color:C.textMid,marginTop:4}}>{roundPts[currentRound]} point{roundPts[currentRound]>1?"s":""} per correct pick</div></div>
     {/* Timer + standings */}
     <div style={{display:"flex",gap:0,marginBottom:28,border:`1px solid ${C.border}`,background:C.surface}}>
@@ -226,7 +238,7 @@ function PicksView({currentPlayer,activeYear,tournaments}){
   </div>);
 }
 
-function HallOfFame({seasonResults,tournaments,currentPlayer}){
+function HallOfFame({seasonResults,tournaments,currentPlayer,mob}){
   const[selYear,setSelYear]=useState(null);const[selView,setSelView]=useState("scores");
   const[bracket,setBracket]=useState(null);const[bracketLoading,setBracketLoading]=useState(false);
   const years=[...new Set((seasonResults||[]).map(r=>r.year))].sort((a,b)=>b-a);
@@ -234,7 +246,7 @@ function HallOfFame({seasonResults,tournaments,currentPlayer}){
   if(selYear){
     const yearResults=(seasonResults||[]).filter(r=>r.year===selYear).sort((a,b)=>b.total_score-a.total_score);
     const tourney=tournaments?.find(t=>t.year===selYear);
-    return(<div style={{padding:"32px 40px",maxWidth:selView==="bracket"?1200:960,margin:"0 auto"}}>
+    return(<div style={{padding:mob?"20px 16px":"32px 40px",maxWidth:selView==="bracket"?1200:960,margin:"0 auto"}}>
       <button onClick={()=>{setSelYear(null);setBracket(null);}} style={{background:"none",border:`1px solid ${C.border}`,color:C.textMid,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit",letterSpacing:1,marginBottom:24}}>Back</button>
       <div style={{display:"flex",alignItems:"baseline",gap:16,marginBottom:8}}><h2 style={{fontSize:36,color:C.text,margin:0,fontWeight:700,lineHeight:1}}>{selYear}</h2>{tourney?.champion_player&&<span style={{fontSize:13,color:C.textMid}}>Champion: <span style={{fontWeight:700,color:C[tourney.champion_player]||C.text}}>{tourney.champion_player}</span></span>}</div>
       <div style={{display:"flex",gap:0,marginBottom:24,borderBottom:`1px solid ${C.border}`}}>
@@ -244,7 +256,7 @@ function HallOfFame({seasonResults,tournaments,currentPlayer}){
       {selView==="scores"?(<>{yearResults.map((pl,i)=>(<div key={pl.player_id} style={{display:"flex",alignItems:"baseline",padding:"10px 0",borderBottom:`1px solid ${C.borderLight}`}}><span style={{width:24,fontSize:12,color:C.textLight}}>{i+1}.</span><span style={{width:48,fontSize:14,fontWeight:700,color:C[pl.player_id]||C.text,letterSpacing:1}}>{pl.player_id}</span><div style={{flex:1,height:4,background:C.borderLight,marginRight:16}}><div style={{height:"100%",width:`${(pl.total_score/124)*100}%`,background:C[pl.player_id]||C.text,opacity:0.5}}/></div><span style={{fontSize:20,fontWeight:700,color:i===0?C.text:C.textMid,fontVariantNumeric:"tabular-nums"}}>{pl.total_score}</span></div>))}<table style={{width:"100%",borderCollapse:"collapse",marginTop:24}}><thead><tr style={{borderBottom:`2px solid ${C.text}`}}><th style={{textAlign:"left",padding:"6px 0",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>PLAYER</th>{RN.map(r=><th key={r} style={{textAlign:"right",padding:"6px 6px",fontSize:9,color:C.textLight,letterSpacing:1,fontWeight:600}}>{r.toUpperCase()}</th>)}<th style={{textAlign:"right",padding:"6px 0",fontSize:10,color:C.text,fontWeight:700}}>TOTAL</th></tr></thead><tbody>{yearResults.map((pl,pi)=>{const rounds=[pl.r1_score,pl.r2_score,pl.r3_score,pl.r4_score,pl.r5_score,pl.r6_score];return(<tr key={pl.player_id} style={{borderBottom:`1px solid ${C.borderLight}`}}><td style={{padding:"8px 0",fontWeight:700,fontSize:13,color:C[pl.player_id]||C.text,letterSpacing:1}}>{pl.player_id}</td>{rounds.map((v,i)=><td key={i} style={{textAlign:"right",padding:"8px 6px",fontSize:13,fontVariantNumeric:"tabular-nums",color:v==null?C.textLight:v===RMAX[i]?C.correct:v===0?C.textLight:C.text,fontWeight:v===RMAX[i]?700:400}}>{v??0}</td>)}<td style={{textAlign:"right",padding:"8px 0",fontSize:16,fontWeight:700,color:pi===0?C.text:C.textMid}}>{pl.total_score}</td></tr>);})}</tbody></table></>):(bracketLoading?<Loading/>:bracket?<BracketDisplay bracket={bracket} currentPlayer={currentPlayer}/>:<div style={{color:C.textLight,padding:20}}>Loading bracket...</div>)}
     </div>);
   }
-  return(<div style={{padding:"32px 40px",maxWidth:960,margin:"0 auto"}}>
+  return(<div style={{padding:mob?"20px 16px":"32px 40px",maxWidth:960,margin:"0 auto"}}>
     <div style={{marginBottom:32}}><Lbl>{years.length} Tournaments</Lbl><h2 style={{fontSize:28,color:C.text,margin:"4px 0",fontWeight:700,lineHeight:1}}>History</h2></div>
     <table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr style={{borderBottom:`2px solid ${C.text}`}}><th style={{textAlign:"left",padding:"6px 0",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600,width:60}}>YEAR</th><th style={{textAlign:"left",padding:"6px 0",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>CHAMPION</th>{PLAYERS_ALL.map(p=><th key={p} style={{textAlign:"right",padding:"6px 8px",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>{p}</th>)}<th style={{textAlign:"right",padding:"6px 0",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>MARGIN</th></tr></thead>
     <tbody>{years.map(year=>{const yr=(seasonResults||[]).filter(r=>r.year===year).sort((a,b)=>b.total_score-a.total_score);const tourney=tournaments?.find(t=>t.year===year);const w=tourney?.champion_player||yr[0]?.player_id;const margin=yr.length>1?yr[0].total_score-yr[1].total_score:"—";const isActive=tourney?.status==='active';return(<tr key={year} style={{borderBottom:`1px solid ${C.borderLight}`,cursor:"pointer"}} onMouseEnter={e=>e.currentTarget.style.background="#f0ede7"} onMouseLeave={e=>e.currentTarget.style.background=""} onClick={()=>{setSelYear(year);setSelView("scores");setBracket(null);}}>
@@ -256,12 +268,12 @@ function HallOfFame({seasonResults,tournaments,currentPlayer}){
   </div>);
 }
 
-function RecordsView({seasonResults,tournaments}){
+function RecordsView({seasonResults,tournaments,mob}){
   if(!seasonResults?.length)return<Loading/>;
   const completedResults=seasonResults.filter(r=>tournaments?.find(t=>t.year===r.year&&t.status==='complete'));
   const stats={};PLAYERS_ALL.forEach(p=>{const sc=completedResults.filter(r=>r.player_id===p);if(sc.length>0){const scores=sc.map(r=>r.total_score);const high=Math.max(...scores);const low=Math.min(...scores);stats[p]={high,low,avg:(scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1),count:sc.length,highYr:sc.find(r=>r.total_score===high)?.year,lowYr:sc.find(r=>r.total_score===low)?.year};}});
   const h2h={};PLAYERS_ALL.forEach(p=>{h2h[p]={w:0,l:0};});(tournaments||[]).filter(t=>t.status==='complete'&&t.champion_player).forEach(t=>{completedResults.filter(r=>r.year===t.year).forEach(r=>{if(r.player_id===t.champion_player)h2h[r.player_id].w++;else h2h[r.player_id].l++;});});
-  return(<div style={{padding:"32px 40px",maxWidth:900,margin:"0 auto"}}><div style={{marginBottom:24}}><Lbl>Since 2008</Lbl><h2 style={{fontSize:28,color:C.text,margin:"4px 0",fontWeight:700,lineHeight:1}}>Records</h2></div>
+  return(<div style={{padding:mob?"20px 16px":"32px 40px",maxWidth:900,margin:"0 auto"}}><div style={{marginBottom:24}}><Lbl>Since 2008</Lbl><h2 style={{fontSize:28,color:C.text,margin:"4px 0",fontWeight:700,lineHeight:1}}>Records</h2></div>
     <table style={{width:"100%",borderCollapse:"collapse",marginBottom:40}}><thead><tr style={{borderBottom:`2px solid ${C.text}`}}><th style={{textAlign:"left",padding:"6px 0",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>PLAYER</th><th style={{textAlign:"right",padding:"6px 12px",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>HIGH</th><th style={{textAlign:"right",padding:"6px 12px",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>LOW</th><th style={{textAlign:"right",padding:"6px 12px",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>AVG</th><th style={{textAlign:"right",padding:"6px 12px",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>RECORD</th><th style={{textAlign:"right",padding:"6px 0",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>SEASONS</th></tr></thead>
     <tbody>{Object.entries(stats).map(([p,s])=>(<tr key={p} style={{borderBottom:`1px solid ${C.borderLight}`}}><td style={{padding:"10px 0",fontWeight:700,fontSize:13,color:C[p]||C.text,letterSpacing:1}}>{p}</td><td style={{textAlign:"right",padding:"10px 12px",fontSize:13,fontVariantNumeric:"tabular-nums"}}>{s.high} <span style={{fontSize:10,color:C.textLight}}>({s.highYr})</span></td><td style={{textAlign:"right",padding:"10px 12px",fontSize:13,fontVariantNumeric:"tabular-nums"}}>{s.low} <span style={{fontSize:10,color:C.textLight}}>({s.lowYr})</span></td><td style={{textAlign:"right",padding:"10px 12px",fontSize:13,fontWeight:600,fontVariantNumeric:"tabular-nums"}}>{s.avg}</td><td style={{textAlign:"right",padding:"10px 12px",fontSize:13,fontVariantNumeric:"tabular-nums"}}><span style={{color:C.correct}}>{h2h[p]?.w||0}W</span> – <span style={{color:C.wrong}}>{h2h[p]?.l||0}L</span></td><td style={{textAlign:"right",padding:"10px 0",fontSize:13,color:C.textMid}}>{s.count}</td></tr>))}</tbody></table>
     <Lbl>Score History</Lbl>
@@ -274,7 +286,7 @@ function PlayerSelect({onSelect}){
   return(<div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:C.bg}}>
     <div style={{textAlign:"center",marginBottom:48}}><div style={{fontSize:10,letterSpacing:4,color:C.textLight,textTransform:"uppercase",fontWeight:600,marginBottom:8}}>Est. 2003</div><h1 style={{fontSize:36,fontWeight:700,color:C.text,margin:0,letterSpacing:1,lineHeight:1}}>Schanbacher</h1><h2 style={{fontSize:13,color:C.textLight,margin:"8px 0 0",letterSpacing:4,textTransform:"uppercase",fontWeight:600}}>Tournament Challenge</h2><div style={{width:40,height:1,background:C.border,margin:"20px auto 0"}}/></div>
     <div style={{fontSize:10,letterSpacing:3,color:C.textLight,textTransform:"uppercase",fontWeight:600,marginBottom:16}}>Select Player</div>
-    <div style={{display:"flex",gap:1}}>{PLAYERS_ALL.map(p=>(<button key={p} onClick={()=>onSelect(p)} style={{background:C.surface,border:`1px solid ${C.border}`,padding:"16px 32px",cursor:"pointer"}} onMouseEnter={e=>e.target.style.background=C.bg} onMouseLeave={e=>e.target.style.background=C.surface}><div style={{fontSize:20,fontWeight:700,color:C[p],letterSpacing:2}}>{p}</div></button>))}</div>
+    <div style={{display:"flex",flexDirection:"column",gap:1,width:"100%",maxWidth:300}}>{PLAYERS_ALL.map(p=>(<button key={p} onClick={()=>onSelect(p)} style={{background:C.surface,border:`1px solid ${C.border}`,padding:"16px 32px",cursor:"pointer",width:"100%"}} onMouseEnter={e=>e.target.style.background=C.bg} onMouseLeave={e=>e.target.style.background=C.surface}><div style={{fontSize:20,fontWeight:700,color:C[p],letterSpacing:2}}>{p}</div></button>))}</div>
   </div>);
 }
 
@@ -285,18 +297,18 @@ export default function App(){
     fetchAllSeasonResults().then(setSeasonResults).catch(console.error);
     fetchTournaments().then(ts=>{setTournaments(ts);const ay=getActiveYear(ts);setActiveYear(ay);}).catch(console.error);
   },[]);
-  if(!player)return<PlayerSelect onSelect={setPlayer}/>;
+  const mob=useIsMobile();if(!player)return<PlayerSelect onSelect={setPlayer}/>;
   const tabs=[{id:"dashboard",label:"Dashboard"},{id:"bracket",label:"Bracket"},{id:"picks",label:"Picks"},{id:"history",label:"History"},{id:"records",label:"Records"}];
   return(<div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Suisse Intl','Helvetica Neue',Helvetica,sans-serif",color:C.text}}>
-    <nav style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 40px",height:48,background:C.surface,borderBottom:`1px solid ${C.border}`,position:"sticky",top:0,zIndex:100}}>
+    <nav style={{display:"flex",flexWrap:mob?"wrap":"nowrap",alignItems:"center",justifyContent:"space-between",padding:mob?"8px 16px":"0 40px",height:mob?"auto":48,background:C.surface,borderBottom:`1px solid ${C.border}`,position:"sticky",top:0,zIndex:100,gap:mob?4:0}}>
       <div style={{display:"flex",alignItems:"baseline",gap:8}}><span style={{fontSize:13,fontWeight:700,color:C.text,letterSpacing:0.5}}>Schanbacher</span><span style={{fontSize:9,color:C.textLight,letterSpacing:2,textTransform:"uppercase"}}>Tournament</span></div>
-      <div style={{display:"flex",gap:0}}>{tabs.map(t=><button key={t.id} onClick={()=>setView(t.id)} style={{background:"none",border:"none",borderBottom:view===t.id?`2px solid ${C.text}`:"2px solid transparent",color:view===t.id?C.text:C.textLight,padding:"14px 14px 12px",cursor:"pointer",fontSize:11,fontWeight:600,letterSpacing:1,textTransform:"uppercase",fontFamily:"inherit"}}>{t.label}</button>)}</div>
-      <div style={{display:"flex",alignItems:"center",gap:12}}><span style={{fontSize:12,fontWeight:700,color:C[player],letterSpacing:1}}>{player}</span><button onClick={()=>setPlayer(null)} style={{background:"none",border:`1px solid ${C.border}`,color:C.textLight,padding:"3px 10px",cursor:"pointer",fontSize:10,fontFamily:"inherit",letterSpacing:1}}>Logout</button></div>
+      <div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:12,fontWeight:700,color:C[player],letterSpacing:1}}>{player}</span><button onClick={()=>setPlayer(null)} style={{background:"none",border:`1px solid ${C.border}`,color:C.textLight,padding:"3px 10px",cursor:"pointer",fontSize:10,fontFamily:"inherit",letterSpacing:1}}>Logout</button></div>
+      <div style={{display:"flex",gap:0,width:mob?"100%":"auto",overflowX:mob?"auto":"visible",WebkitOverflowScrolling:"touch",order:mob?3:0}}>{tabs.map(t=><button key={t.id} onClick={()=>setView(t.id)} style={{background:"none",border:"none",borderBottom:view===t.id?`2px solid ${C.text}`:"2px solid transparent",color:view===t.id?C.text:C.textLight,padding:mob?"8px 10px":"14px 14px 12px",cursor:"pointer",fontSize:mob?10:11,fontWeight:600,letterSpacing:1,textTransform:"uppercase",fontFamily:"inherit",whiteSpace:"nowrap"}}>{t.label}</button>)}</div>
     </nav>
-    {view==="dashboard"&&<Dashboard seasonResults={seasonResults} tournaments={tournaments}/>}
-    {view==="bracket"&&<BracketView currentPlayer={player} activeYear={activeYear}/>}
-    {view==="picks"&&<PicksView currentPlayer={player} activeYear={activeYear} tournaments={tournaments}/>}
-    {view==="history"&&<HallOfFame seasonResults={seasonResults} tournaments={tournaments} currentPlayer={player}/>}
-    {view==="records"&&<RecordsView seasonResults={seasonResults} tournaments={tournaments}/>}
+    {view==="dashboard"&&<Dashboard seasonResults={seasonResults} tournaments={tournaments} mob={mob}/>}
+    {view==="bracket"&&<BracketView currentPlayer={player} activeYear={activeYear} mob={mob}/>}
+    {view==="picks"&&<PicksView currentPlayer={player} activeYear={activeYear} tournaments={tournaments} mob={mob}/>}
+    {view==="history"&&<HallOfFame seasonResults={seasonResults} tournaments={tournaments} currentPlayer={player} mob={mob}/>}
+    {view==="records"&&<RecordsView seasonResults={seasonResults} tournaments={tournaments} mob={mob}/>}
   </div>);
 }
