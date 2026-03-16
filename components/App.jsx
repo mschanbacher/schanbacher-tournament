@@ -277,43 +277,25 @@ function RecordsView({seasonResults,tournaments,mob}){
 
   // Compute round-by-round records from data
   const roundFields = ["r1_score","r2_score","r3_score","r4_score","r5_score","r6_score"];
-  const roundLabels = ["1st Round","2nd Round","Sweet 16","Elite 8","Final Four","Championship"];
-  const roundPts = [1,2,3,4,5,6];
-  const roundMax = [36,32,24,16,10,6];
+  const roundLabelsR = ["1st Round","2nd Round","Sweet 16","Elite 8","Final Four","Championship"];
+  const roundPtsR = [1,2,3,4,5,6];
+  const roundMaxR = [36,32,24,16,10,6];
   
-  const roundRecords = roundLabels.map((label, ri) => {
+  const roundRecords = roundLabelsR.map((label, ri) => {
     const field = roundFields[ri];
-    const records = {};
+    const playerStats = {};
     PLAYERS_ALL.forEach(p => {
-      const scores = completedResults.filter(r => r.player_id === p && r[field] != null).map(r => ({val: r[field], yr: r.year}));
+      const scores = completedResults.filter(r => r.player_id === p && r[field] != null).map(r => r[field]);
       if (scores.length > 0) {
-        const vals = scores.map(s => s.val);
-        const high = Math.max(...vals);
-        const low = Math.min(...vals);
-        const avg = (vals.reduce((a,b) => a+b, 0) / vals.length).toFixed(1);
-        records[p] = {
-          high, highYr: scores.filter(s => s.val === high).map(s => s.yr).join(", "),
-          low, lowYr: scores.filter(s => s.val === low).map(s => s.yr).join(", "),
-          avg, count: scores.length
-        };
+        const high = Math.max(...scores);
+        const low = Math.min(...scores);
+        const avg = (scores.reduce((a,b) => a+b, 0) / scores.length).toFixed(1);
+        const highCount = scores.filter(s => s === high).length;
+        const lowCount = scores.filter(s => s === low).length;
+        playerStats[p] = { high, highCount, low, lowCount, avg, count: scores.length };
       }
     });
-    // Compute gaps between TLS and MJS
-    const years = [...new Set(completedResults.map(r => r.year))];
-    let largestGapTLS = {val:0,yr:""}, largestGapMJS = {val:0,yr:""}, smallestGap = {val:999,yr:""};
-    years.forEach(yr => {
-      const tls = completedResults.find(r => r.year === yr && r.player_id === "TLS");
-      const mjs = completedResults.find(r => r.year === yr && r.player_id === "MJS");
-      if (tls && mjs && tls[field] != null && mjs[field] != null) {
-        const diff = tls[field] - mjs[field];
-        const absDiff = Math.abs(diff);
-        if (diff > 0 && diff > largestGapTLS.val) largestGapTLS = {val: diff, yr: yr};
-        if (diff < 0 && Math.abs(diff) > largestGapMJS.val) largestGapMJS = {val: Math.abs(diff), yr: yr};
-        if (absDiff < smallestGap.val) smallestGap = {val: absDiff, yr: String(yr)};
-        else if (absDiff === smallestGap.val) smallestGap.yr += ", " + yr;
-      }
-    });
-    return {label, pts: roundPts[ri], max: roundMax[ri], records, largestGapTLS, largestGapMJS, smallestGap};
+    return { label, pts: roundPtsR[ri], max: roundMaxR[ri], playerStats };
   });
 
   return(<div style={{padding:mob?"20px 16px":"32px 40px",maxWidth:900,margin:"0 auto"}}><div style={{marginBottom:24}}><Lbl>Since 2008</Lbl><h2 style={{fontSize:28,color:C.text,margin:"4px 0",fontWeight:700,lineHeight:1}}>Records</h2></div>
@@ -321,51 +303,26 @@ function RecordsView({seasonResults,tournaments,mob}){
       <button onClick={()=>setTab("overall")} style={{background:"none",border:"none",borderBottom:tab==="overall"?`2px solid ${C.text}`:"2px solid transparent",color:tab==="overall"?C.text:C.textLight,padding:"8px 16px",cursor:"pointer",fontSize:11,fontWeight:600,letterSpacing:1,textTransform:"uppercase",fontFamily:"inherit",marginBottom:-1}}>Overall</button>
       <button onClick={()=>setTab("rounds")} style={{background:"none",border:"none",borderBottom:tab==="rounds"?`2px solid ${C.text}`:"2px solid transparent",color:tab==="rounds"?C.text:C.textLight,padding:"8px 16px",cursor:"pointer",fontSize:11,fontWeight:600,letterSpacing:1,textTransform:"uppercase",fontFamily:"inherit",marginBottom:-1}}>By Round</button>
     </div>
-    {tab==="rounds"?(<div>{roundRecords.map((rr,ri)=>(<div key={ri} style={{marginBottom:32}}>
+    {tab==="rounds"?(<div>{roundRecords.map((rr,ri)=>{const hdr={textAlign:"right",padding:"6px 8px",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600};const cv={textAlign:"right",padding:"8px 8px",fontSize:13,fontVariantNumeric:"tabular-nums",fontWeight:600};const nv={textAlign:"right",padding:"8px 4px",fontSize:11,fontVariantNumeric:"tabular-nums",color:C.textLight,fontWeight:400,width:24};return(<div key={ri} style={{marginBottom:32}}>
       <div style={{display:"flex",alignItems:"baseline",gap:12,marginBottom:8}}>
         <span style={{fontSize:14,fontWeight:700,color:C.text}}>{rr.label}</span>
         <span style={{fontSize:11,color:C.textLight}}>{rr.pts}pt / {rr.max} possible</span>
       </div>
-      <table style={{width:"100%",borderCollapse:"collapse"}}>
+      <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",minWidth:500}}>
         <thead><tr style={{borderBottom:`2px solid ${C.text}`}}>
-          <th style={{textAlign:"left",padding:"6px 0",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600,width:140}}>RECORD</th>
-          <th style={{textAlign:"right",padding:"6px 12px",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>TLS</th>
-          <th style={{textAlign:"right",padding:"6px 12px",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>MJS</th>
-          <th style={{textAlign:"right",padding:"6px 0",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>YEAR</th>
+          <th style={{textAlign:"left",padding:"6px 0",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600,width:100}}>RECORD</th>
+          <th style={hdr}>TLS</th><th style={{...hdr,width:24}}>#</th>
+          <th style={hdr}>MJS</th><th style={{...hdr,width:24}}>#</th>
+          <th style={hdr}>JRS</th><th style={{...hdr,width:24}}>#</th>
         </tr></thead>
         <tbody>
-          <tr style={{borderBottom:`1px solid ${C.borderLight}`}}>
-            <td style={{padding:"8px 0",fontSize:12,color:C.textMid,fontWeight:600}}>High</td>
-            <td style={{textAlign:"right",padding:"8px 12px",fontSize:13,fontVariantNumeric:"tabular-nums",color:C.TLS,fontWeight:600}}>{rr.records.TLS?.high??"-"}{rr.records.TLS?.highYr?<span style={{fontSize:10,color:C.textLight,fontWeight:400}}> ({rr.records.TLS.highYr})</span>:null}</td>
-            <td style={{textAlign:"right",padding:"8px 12px",fontSize:13,fontVariantNumeric:"tabular-nums",color:C.MJS,fontWeight:600}}>{rr.records.MJS?.high??"-"}{rr.records.MJS?.highYr?<span style={{fontSize:10,color:C.textLight,fontWeight:400}}> ({rr.records.MJS.highYr})</span>:null}</td>
-            <td></td>
-          </tr>
-          <tr style={{borderBottom:`1px solid ${C.borderLight}`}}>
-            <td style={{padding:"8px 0",fontSize:12,color:C.textMid,fontWeight:600}}>Low</td>
-            <td style={{textAlign:"right",padding:"8px 12px",fontSize:13,fontVariantNumeric:"tabular-nums",color:C.TLS,fontWeight:600}}>{rr.records.TLS?.low??"-"}{rr.records.TLS?.lowYr?<span style={{fontSize:10,color:C.textLight,fontWeight:400}}> ({rr.records.TLS.lowYr})</span>:null}</td>
-            <td style={{textAlign:"right",padding:"8px 12px",fontSize:13,fontVariantNumeric:"tabular-nums",color:C.MJS,fontWeight:600}}>{rr.records.MJS?.low??"-"}{rr.records.MJS?.lowYr?<span style={{fontSize:10,color:C.textLight,fontWeight:400}}> ({rr.records.MJS.lowYr})</span>:null}</td>
-            <td></td>
-          </tr>
-          <tr style={{borderBottom:`1px solid ${C.borderLight}`}}>
-            <td style={{padding:"8px 0",fontSize:12,color:C.textMid,fontWeight:600}}>Largest gap</td>
-            <td style={{textAlign:"right",padding:"8px 12px",fontSize:13,fontVariantNumeric:"tabular-nums",color:C.TLS,fontWeight:600}}>{rr.largestGapTLS.val||"-"}{rr.largestGapTLS.yr?<span style={{fontSize:10,color:C.textLight,fontWeight:400}}> ({rr.largestGapTLS.yr})</span>:null}</td>
-            <td style={{textAlign:"right",padding:"8px 12px",fontSize:13,fontVariantNumeric:"tabular-nums",color:C.MJS,fontWeight:600}}>{rr.largestGapMJS.val||"-"}{rr.largestGapMJS.yr?<span style={{fontSize:10,color:C.textLight,fontWeight:400}}> ({rr.largestGapMJS.yr})</span>:null}</td>
-            <td></td>
-          </tr>
-          <tr style={{borderBottom:`1px solid ${C.borderLight}`}}>
-            <td style={{padding:"8px 0",fontSize:12,color:C.textMid,fontWeight:600}}>Smallest gap</td>
-            <td colSpan={2} style={{textAlign:"right",padding:"8px 12px",fontSize:13,fontVariantNumeric:"tabular-nums",fontWeight:600}}>{rr.smallestGap.val}</td>
-            <td style={{textAlign:"right",padding:"8px 0",fontSize:11,color:C.textLight}}>{rr.smallestGap.yr}</td>
-          </tr>
-          <tr style={{borderBottom:`1px solid ${C.borderLight}`}}>
-            <td style={{padding:"8px 0",fontSize:12,color:C.textMid,fontWeight:600}}>Average</td>
-            <td style={{textAlign:"right",padding:"8px 12px",fontSize:13,fontVariantNumeric:"tabular-nums",color:C.TLS,fontWeight:600}}>{rr.records.TLS?.avg??"-"}</td>
-            <td style={{textAlign:"right",padding:"8px 12px",fontSize:13,fontVariantNumeric:"tabular-nums",color:C.MJS,fontWeight:600}}>{rr.records.MJS?.avg??"-"}</td>
-            <td></td>
-          </tr>
+          {[["High","high","highCount"],["Low","low","lowCount"],["Average","avg",null]].map(([label,key,countKey])=>(<tr key={label} style={{borderBottom:`1px solid ${C.borderLight}`}}>
+            <td style={{padding:"8px 0",fontSize:12,color:C.textMid,fontWeight:600}}>{label}</td>
+            {PLAYERS_ALL.map(p=>{const s=rr.playerStats[p];const val=s?s[key]:"-";const cnt=countKey&&s?s[countKey]:null;return[<td key={p} style={{...cv,color:C[p]||C.text}}>{val}</td>,countKey?<td key={p+"n"} style={nv}>{cnt!==null?cnt:""}</td>:<td key={p+"n"} style={nv}></td>];})}
+          </tr>))}
         </tbody>
-      </table>
-    </div>))}</div>):(<>
+      </table></div>
+    </div>);})}</div>):(<>
     <table style={{width:"100%",borderCollapse:"collapse",marginBottom:40}}><thead><tr style={{borderBottom:`2px solid ${C.text}`}}><th style={{textAlign:"left",padding:"6px 0",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>PLAYER</th><th style={{textAlign:"right",padding:"6px 12px",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>HIGH</th><th style={{textAlign:"right",padding:"6px 12px",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>LOW</th><th style={{textAlign:"right",padding:"6px 12px",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>AVG</th><th style={{textAlign:"right",padding:"6px 12px",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>RECORD</th><th style={{textAlign:"right",padding:"6px 0",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>SEASONS</th></tr></thead>
     <tbody>{Object.entries(stats).map(([p,s])=>(<tr key={p} style={{borderBottom:`1px solid ${C.borderLight}`}}><td style={{padding:"10px 0",fontWeight:700,fontSize:13,color:C[p]||C.text,letterSpacing:1}}>{p}</td><td style={{textAlign:"right",padding:"10px 12px",fontSize:13,fontVariantNumeric:"tabular-nums"}}>{s.high} <span style={{fontSize:10,color:C.textLight}}>({s.highYr})</span></td><td style={{textAlign:"right",padding:"10px 12px",fontSize:13,fontVariantNumeric:"tabular-nums"}}>{s.low} <span style={{fontSize:10,color:C.textLight}}>({s.lowYr})</span></td><td style={{textAlign:"right",padding:"10px 12px",fontSize:13,fontWeight:600,fontVariantNumeric:"tabular-nums"}}>{s.avg}</td><td style={{textAlign:"right",padding:"10px 12px",fontSize:13,fontVariantNumeric:"tabular-nums"}}><span style={{color:C.correct}}>{h2h[p]?.w||0}W</span> – <span style={{color:C.wrong}}>{h2h[p]?.l||0}L</span></td><td style={{textAlign:"right",padding:"10px 0",fontSize:13,color:C.textMid}}>{s.count}</td></tr>))}</tbody></table>
     <Lbl>Score History</Lbl>
