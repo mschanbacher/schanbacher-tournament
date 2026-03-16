@@ -172,13 +172,14 @@ function PicksView({currentPlayer,activeYear,tournaments,mob}){
 
   // Current round data
   const roundGames = allGames.filter(g => g.round === currentRound && g.team1 && g.team2);
+  const locked = roundGames.some(g => g.status === "live" || g.status === "final");
   const submitted = roundGames.length > 0 && roundGames.every(g => myPicks[g.id]);
   const allPicked = roundGames.length > 0 && roundGames.every(g => myPicks[g.id]);
 
   // Available round tabs
   const roundsAvailable = [...new Set(allGames.map(g => g.round))].sort((a, b) => a - b);
 
-  const handlePick = (gameId, team) => { if (!submitted) setMyPicks(p => ({...p, [gameId]: team})); };
+  const handlePick = (gameId, team) => { if (!submitted && !locked) setMyPicks(p => ({...p, [gameId]: team})); };
 
   const handleSubmit = async () => {
     if (!allPicked || submitting) return;
@@ -244,8 +245,8 @@ function PicksView({currentPlayer,activeYear,tournaments,mob}){
       {submitted ? (
         <div style={{padding:"24px 0",textAlign:"center"}}>
           <div style={{fontSize:14,color:C.correct,fontWeight:600,marginBottom:8}}>Picks submitted</div>
-          <div style={{fontSize:12,color:C.textLight,marginBottom:16}}>Your {roundNames[currentRound].toLowerCase()} picks are locked.</div>
-          <button onClick={handleClear} style={{background:"none",border:`1px solid ${C.border}`,color:C.textMid,padding:"6px 16px",cursor:"pointer",fontSize:11,fontFamily:"inherit",letterSpacing:1}}>Clear My Picks</button>
+          <div style={{fontSize:12,color:C.textLight,marginBottom:16}}>{locked?"Games have started — picks are permanently locked.":"Your "+roundNames[currentRound].toLowerCase()+" picks are saved. You can clear and re-pick before tipoff."}</div>
+          {!locked&&<button onClick={handleClear} style={{background:"none",border:`1px solid ${C.border}`,color:C.textMid,padding:"6px 16px",cursor:"pointer",fontSize:11,fontFamily:"inherit",letterSpacing:1}}>Clear My Picks</button>}
         </div>
       ) : (<>
         {Object.entries(grouped).map(([regionName, regionGames]) => (<div key={regionName} style={{marginBottom:20}}>
