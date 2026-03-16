@@ -86,6 +86,7 @@ function BracketDisplay({bracket,currentPlayer}){
     <div style={{display:"flex",gap:20,alignItems:"center",marginBottom:16,fontSize:11,color:C.textMid}}>
       <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:3,height:12,background:C.correct}}/> Correct</div>
       <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:3,height:12,background:C.wrong}}/> Wrong</div>
+      <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:3,height:12,background:"#C6982B"}}/> Differences</div>
       <span>Initials = other players</span>
     </div>
     <div style={{display:"flex",gap:0,marginBottom:24,borderBottom:`1px solid ${C.border}`,overflowX:"auto",overflowY:"hidden",WebkitOverflowScrolling:"touch"}}>
