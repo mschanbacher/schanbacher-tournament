@@ -218,7 +218,7 @@ function PicksView({currentPlayer,activeYear,tournaments,mob}){
         <div style={{fontSize:10,color:C.textLight,marginTop:2}}>First tipoff</div>
       </div>}
     </div>
-    {submitted?(<div style={{padding:"32px 0",textAlign:"center"}}><div style={{fontSize:14,color:C.correct,fontWeight:600,marginBottom:8}}>Picks submitted</div><div style={{fontSize:12,color:C.textLight}}>Your {roundNames[currentRound].toLowerCase()} picks are locked. Check the Bracket tab to follow results.</div></div>):(<>
+    {submitted?(<div style={{padding:"32px 0",textAlign:"center"}}><div style={{fontSize:14,color:C.correct,fontWeight:600,marginBottom:8}}>Picks submitted</div><div style={{fontSize:12,color:C.textLight,marginBottom:16}}>Your {roundNames[currentRound].toLowerCase()} picks are locked. Check the Bracket tab to follow results.</div><button onClick={async()=>{if(!confirm("Clear all your "+roundNames[currentRound]+" picks? You can re-submit before tipoff."))return;const{supabase:sb}=await import("../lib/supabase");const gameIds=games.map(g=>g.id);for(const gid of gameIds){await sb.from("picks").delete().eq("game_id",gid).eq("player_id",currentPlayer);}setMyPicks({});setSubmitted(false);}} style={{background:"none",border:`1px solid ${C.border}`,color:C.textMid,padding:"6px 16px",cursor:"pointer",fontSize:11,fontFamily:"inherit",letterSpacing:1}}>Clear My Picks</button></div>):(<>
       {Object.entries(grouped).map(([regionName,regionGames])=>(<div key={regionName} style={{marginBottom:20}}>
         <div style={{fontSize:9,letterSpacing:3,color:C.textLight,textTransform:"uppercase",fontWeight:600,marginBottom:8}}>{regionName}</div>
         {regionGames.map(game=>(<div key={game.id} style={{marginBottom:8}}>
@@ -282,6 +282,226 @@ function RecordsView({seasonResults,tournaments,mob}){
   </div>);
 }
 
+
+function AdminView({activeYear,mob}) {
+  const [games, setGames] = useState([]);
+  const [regions, setRegions] = useState([]);
+  const [selectedGame, setSelectedGame] = useState(null);
+  const [score1, setScore1] = useState("");
+  const [score2, setScore2] = useState("");
+  const [msg, setMsg] = useState("");
+  const [loading, setLoading] = useState(true);
+  
+  // New season state
+  const [newYear, setNewYear] = useState("");
+  const [newRegions, setNewRegions] = useState("East,West,Midwest,South");
+  
+  // First Four fix state
+  const [ffGames, setFfGames] = useState([]);
+  const [r1Games, setR1Games] = useState([]);
+  const [ffFixGame, setFfFixGame] = useState(null);
+  const [ffFixTarget, setFfFixTarget] = useState(null);
+  const [ffFixTeam, setFfFixTeam] = useState("");
+
+  useEffect(() => {
+    if (!activeYear) return;
+    (async () => {
+      const {supabase} = await import("../lib/supabase");
+      const {data: g} = await supabase.from("games").select("*, regions(name)").eq("year", activeYear).order("round").order("game_order");
+      const {data: r} = await supabase.from("regions").select("*").eq("year", activeYear).order("position");
+      setGames(g || []);
+      setRegions(r || []);
+      setFfGames((g||[]).filter(x=>x.round===0));
+      setR1Games((g||[]).filter(x=>x.round===1));
+      setLoading(false);
+    })();
+  }, [activeYear]);
+
+  const roundNames = ["First Four","Round 1","Round 2","Sweet 16","Elite 8","Final Four","Championship"];
+
+  // Score Override
+  const handleScoreUpdate = async () => {
+    if (!selectedGame || !score1 || !score2) return;
+    const g = games.find(x => x.id === parseInt(selectedGame));
+    if (!g) return;
+    const s1 = parseInt(score1), s2 = parseInt(score2);
+    const winner = s1 > s2 ? g.team1 : g.team2;
+    const {supabase} = await import("../lib/supabase");
+    
+    await supabase.from("games").update({score1: s1, score2: s2, winner, status: "final"}).eq("id", g.id);
+    
+    // Update picks points
+    const roundPts = [1,1,2,3,4,5,6];
+    const pts = roundPts[g.round] || 0;
+    const {data: picks} = await supabase.from("picks").select("*").eq("game_id", g.id);
+    for (const pick of (picks||[])) {
+      const earned = pick.picked_team === winner ? pts : 0;
+      await supabase.from("picks").update({points_earned: earned}).eq("id", pick.id);
+      if (earned > 0) {
+        const roundCol = ["r1_score","r1_score","r2_score","r3_score","r4_score","r5_score","r6_score"][g.round];
+        const {data: sr} = await supabase.from("season_results").select("*").eq("year", activeYear).eq("player_id", pick.player_id).single();
+        if (sr) {
+          await supabase.from("season_results").update({[roundCol]: (sr[roundCol]||0) + earned, total_score: (sr.total_score||0) + earned}).eq("id", sr.id);
+        }
+      }
+    }
+    setMsg(`Updated: ${g.team1} ${s1} - ${g.team2} ${s2}, Winner: ${winner}`);
+    setScore1(""); setScore2(""); setSelectedGame(null);
+    // Refresh games
+    const {data: updated} = await supabase.from("games").select("*, regions(name)").eq("year", activeYear).order("round").order("game_order");
+    setGames(updated || []);
+  };
+
+  // First Four → R1 fix
+  const handleFfFix = async () => {
+    if (!ffFixTarget || !ffFixTeam) return;
+    const {supabase} = await import("../lib/supabase");
+    const target = r1Games.find(x => x.id === parseInt(ffFixTarget));
+    if (!target) return;
+    // Determine if replacing team1 or team2 based on which has a "/" placeholder
+    const field = (target.team1 && target.team1.includes("/")) ? "team1" : "team2";
+    await supabase.from("games").update({[field]: ffFixTeam}).eq("id", target.id);
+    setMsg(`Updated R1 game: ${field} set to ${ffFixTeam}`);
+    const {data: updated} = await supabase.from("games").select("*, regions(name)").eq("year", activeYear).order("round").order("game_order");
+    setGames(updated || []);
+    setR1Games((updated||[]).filter(x=>x.round===1));
+  };
+
+  // Archive season
+  const handleArchive = async () => {
+    if (!confirm("Archive the " + activeYear + " tournament? This marks it as complete.")) return;
+    const {supabase} = await import("../lib/supabase");
+    // Find winner from season_results
+    const {data: results} = await supabase.from("season_results").select("*").eq("year", activeYear).order("total_score", {ascending: false});
+    const champion = results?.[0]?.player_id;
+    await supabase.from("tournaments").update({status: "complete", champion_player: champion}).eq("year", activeYear);
+    setMsg(`Tournament ${activeYear} archived. Champion: ${champion}`);
+  };
+
+  // Manual round advancement
+  const handleAdvanceRound = async () => {
+    const res = await fetch("/api/advance-round");
+    const data = await res.json();
+    setMsg(`Advance round: ${JSON.stringify(data.gamesCreated || [])}`);
+    const {supabase} = await import("../lib/supabase");
+    const {data: updated} = await supabase.from("games").select("*, regions(name)").eq("year", activeYear).order("round").order("game_order");
+    setGames(updated || []);
+  };
+
+  // Manual score fetch
+  const handleFetchScores = async () => {
+    setMsg("Fetching scores...");
+    const res = await fetch("/api/update-scores");
+    const data = await res.json();
+    setMsg(`Scores: ${data.gamesUpdated} updated. ${(data.updates||[]).join(", ")}`);
+    const {supabase} = await import("../lib/supabase");
+    const {data: updated} = await supabase.from("games").select("*, regions(name)").eq("year", activeYear).order("round").order("game_order");
+    setGames(updated || []);
+  };
+
+  // Initialize new season
+  const handleNewSeason = async () => {
+    if (!newYear) return;
+    if (!confirm("Create tournament for " + newYear + "?")) return;
+    const {supabase} = await import("../lib/supabase");
+    const yr = parseInt(newYear);
+    await supabase.from("tournaments").insert({year: yr, status: "active", current_round: 0});
+    const regionList = newRegions.split(",").map(r => r.trim());
+    for (let i = 0; i < regionList.length; i++) {
+      await supabase.from("regions").insert({year: yr, name: regionList[i], position: i + 1});
+    }
+    for (const p of ["TLS","MJS","JRS"]) {
+      await supabase.from("season_results").insert({year: yr, player_id: p, total_score: 0});
+    }
+    setMsg(`Created tournament ${yr} with regions: ${regionList.join(", ")}. Add games via SQL or future game entry UI.`);
+  };
+
+  const pendingGames = games.filter(g => g.status !== "final");
+  const inputStyle = {border:`1px solid ${C.border}`,padding:"6px 10px",fontSize:12,fontFamily:"inherit",background:C.surface,width:"100%"};
+  const btnStyle = {background:C.text,color:"#fff",border:"none",padding:"8px 16px",fontSize:11,fontWeight:700,letterSpacing:1,textTransform:"uppercase",fontFamily:"inherit",cursor:"pointer"};
+  const secStyle = {marginBottom:32,paddingBottom:24,borderBottom:`1px solid ${C.borderLight}`};
+
+  if (loading) return <Loading/>;
+
+  return (
+    <div style={{padding:mob?"20px 16px":"32px 40px",maxWidth:700,margin:"0 auto"}}>
+      <div style={{marginBottom:32}}><Lbl>Admin</Lbl><h2 style={{fontSize:28,color:C.text,margin:"4px 0",fontWeight:700,lineHeight:1}}>Tournament Controls</h2><div style={{fontSize:12,color:C.textMid,marginTop:4}}>Active year: {activeYear}</div></div>
+      
+      {msg && <div style={{padding:"10px 14px",background:C.surface,border:`1px solid ${C.border}`,marginBottom:20,fontSize:12,color:C.text}}>{msg}<button onClick={()=>setMsg("")} style={{float:"right",background:"none",border:"none",color:C.textLight,cursor:"pointer",fontSize:11}}>dismiss</button></div>}
+
+      {/* Fetch Scores + Advance Round */}
+      <div style={secStyle}>
+        <Lbl>Quick Actions</Lbl>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={handleFetchScores} style={btnStyle}>Fetch Scores Now</button>
+          <button onClick={handleAdvanceRound} style={{...btnStyle,background:C.textMid}}>Advance Round</button>
+        </div>
+      </div>
+
+      {/* Score Override */}
+      <div style={secStyle}>
+        <Lbl>Score Override</Lbl>
+        <select value={selectedGame||""} onChange={e=>setSelectedGame(e.target.value)} style={{...inputStyle,marginBottom:8}}>
+          <option value="">Select a game...</option>
+          {pendingGames.map(g=><option key={g.id} value={g.id}>{roundNames[g.round]} — {g.team1||"TBD"} vs {g.team2||"TBD"} {g.regions?.name?`(${g.regions.name})`:""}</option>)}
+        </select>
+        {selectedGame && (() => {
+          const g = games.find(x=>x.id===parseInt(selectedGame));
+          if (!g) return null;
+          return (<div style={{display:"flex",gap:8,alignItems:"center"}}>
+            <div style={{flex:1}}><div style={{fontSize:11,color:C.textLight,marginBottom:2}}>{g.team1}</div><input type="number" value={score1} onChange={e=>setScore1(e.target.value)} placeholder="Score" style={inputStyle}/></div>
+            <div style={{flex:1}}><div style={{fontSize:11,color:C.textLight,marginBottom:2}}>{g.team2}</div><input type="number" value={score2} onChange={e=>setScore2(e.target.value)} placeholder="Score" style={inputStyle}/></div>
+            <button onClick={handleScoreUpdate} style={{...btnStyle,marginTop:14}}>Save</button>
+          </div>);
+        })()}
+      </div>
+
+      {/* First Four → R1 Fix */}
+      <div style={secStyle}>
+        <Lbl>First Four → Round 1 Fix</Lbl>
+        <div style={{fontSize:12,color:C.textMid,marginBottom:8}}>Update a Round 1 placeholder team with a First Four winner</div>
+        <select value={ffFixTarget||""} onChange={e=>setFfFixTarget(e.target.value)} style={{...inputStyle,marginBottom:8}}>
+          <option value="">Select R1 game to fix...</option>
+          {r1Games.filter(g=>g.team1?.includes("/")||g.team2?.includes("/")).map(g=><option key={g.id} value={g.id}>{g.regions?.name}: {g.team1} vs {g.team2}</option>)}
+        </select>
+        <input type="text" value={ffFixTeam} onChange={e=>setFfFixTeam(e.target.value)} placeholder="Winning team name" style={{...inputStyle,marginBottom:8}}/>
+        <button onClick={handleFfFix} style={btnStyle}>Update Team</button>
+      </div>
+
+      {/* Archive Season */}
+      <div style={secStyle}>
+        <Lbl>Archive Season</Lbl>
+        <div style={{fontSize:12,color:C.textMid,marginBottom:8}}>Mark the {activeYear} tournament as complete. The player with the highest score becomes champion.</div>
+        <button onClick={handleArchive} style={{...btnStyle,background:C.wrong}}>Archive {activeYear} Tournament</button>
+      </div>
+
+      {/* Initialize New Season */}
+      <div style={secStyle}>
+        <Lbl>Initialize New Season</Lbl>
+        <div style={{display:"flex",gap:8,marginBottom:8}}>
+          <input type="number" value={newYear} onChange={e=>setNewYear(e.target.value)} placeholder="Year (e.g. 2027)" style={{...inputStyle,flex:1}}/>
+        </div>
+        <input type="text" value={newRegions} onChange={e=>setNewRegions(e.target.value)} placeholder="Regions (comma-separated)" style={{...inputStyle,marginBottom:8}}/>
+        <button onClick={handleNewSeason} style={btnStyle}>Create Tournament</button>
+      </div>
+
+      {/* Game Status Overview */}
+      <div>
+        <Lbl>All {activeYear} Games ({games.length})</Lbl>
+        <div style={{maxHeight:300,overflowY:"auto",border:`1px solid ${C.borderLight}`}}>
+          {games.map(g=>(
+            <div key={g.id} style={{display:"flex",justifyContent:"space-between",padding:"6px 10px",borderBottom:`1px solid ${C.borderLight}`,fontSize:11}}>
+              <span style={{color:C.textMid}}>{roundNames[g.round]} {g.regions?.name||""}</span>
+              <span>{g.team1||"TBD"} {g.score1??""} - {g.score2??""} {g.team2||"TBD"}</span>
+              <span style={{color:g.status==="final"?C.correct:g.status==="live"?C.wrong:C.textLight,fontWeight:600}}>{g.status}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PlayerSelect({onSelect}){
   return(<div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:C.bg}}>
     <div style={{textAlign:"center",marginBottom:48}}><div style={{fontSize:10,letterSpacing:4,color:C.textLight,textTransform:"uppercase",fontWeight:600,marginBottom:8}}>Est. 2003</div><h1 style={{fontSize:36,fontWeight:700,color:C.text,margin:0,letterSpacing:1,lineHeight:1}}>Schanbacher</h1><h2 style={{fontSize:13,color:C.textLight,margin:"8px 0 0",letterSpacing:4,textTransform:"uppercase",fontWeight:600}}>Tournament Challenge</h2><div style={{width:40,height:1,background:C.border,margin:"20px auto 0"}}/></div>
@@ -298,7 +518,7 @@ export default function App(){
     fetchTournaments().then(ts=>{setTournaments(ts);const ay=getActiveYear(ts);setActiveYear(ay);}).catch(console.error);
   },[]);
   const mob=useIsMobile();if(!player)return<PlayerSelect onSelect={setPlayer}/>;
-  const tabs=[{id:"dashboard",label:"Dashboard"},{id:"bracket",label:"Bracket"},{id:"picks",label:"Picks"},{id:"history",label:"History"},{id:"records",label:"Records"}];
+  const baseTabs=[{id:"dashboard",label:"Dashboard"},{id:"bracket",label:"Bracket"},{id:"picks",label:"Picks"},{id:"history",label:"History"},{id:"records",label:"Records"}];const tabs=player==="MJS"?[...baseTabs,{id:"admin",label:"Admin"}]:baseTabs;
   return(<div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Suisse Intl','Helvetica Neue',Helvetica,sans-serif",color:C.text}}>
     <nav style={{display:"flex",flexWrap:mob?"wrap":"nowrap",alignItems:"center",justifyContent:"space-between",padding:mob?"8px 16px":"0 40px",height:mob?"auto":48,background:C.surface,borderBottom:`1px solid ${C.border}`,position:"sticky",top:0,zIndex:100,gap:mob?4:0}}>
       <div style={{display:"flex",alignItems:"baseline",gap:8}}><span style={{fontSize:13,fontWeight:700,color:C.text,letterSpacing:0.5}}>Schanbacher</span><span style={{fontSize:9,color:C.textLight,letterSpacing:2,textTransform:"uppercase"}}>Tournament</span></div>
@@ -310,6 +530,7 @@ export default function App(){
     {view==="picks"&&<PicksView currentPlayer={player} activeYear={activeYear} tournaments={tournaments} mob={mob}/>}
     {view==="history"&&<HallOfFame seasonResults={seasonResults} tournaments={tournaments} currentPlayer={player} mob={mob}/>}
     {view==="records"&&<RecordsView seasonResults={seasonResults} tournaments={tournaments} mob={mob}/>}
+    {view==="admin"&&player==="MJS"&&<AdminView activeYear={activeYear} mob={mob}/>}
     <footer style={{padding:"24px 40px",textAlign:"center",fontSize:10,color:C.textLight,letterSpacing:1,marginTop:40}}>Copyright 2026 — Field Development</footer>
   </div>);
 }
