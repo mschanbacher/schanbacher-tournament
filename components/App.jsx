@@ -52,8 +52,8 @@ function GameCell({game,roundIdx,currentPlayer,allPlayers}){
     </div>);
   };
   return(<div style={{display:"flex",alignItems:"center"}}>
-    {isSplit?<div style={{width:24,height:44,background:"#C6982B",flexShrink:0}}/>:<div style={{width:24,flexShrink:0}}/>}
-    <div style={{width:200,border:"1px solid "+(isPending?C.borderLight:C.border),background:isPending?C.bg:C.surface,opacity:isPending?0.65:1,borderLeft:isSplit?"none":undefined}}>
+    <div style={{width:24,height:44,background:isSplit?"#C6982B":"transparent",flexShrink:0}}/>
+    <div style={{width:200,border:"1px solid "+(isPending?C.borderLight:C.border),background:isPending?C.bg:C.surface,opacity:isPending?0.65:1}}>
       <TeamRow team={game.t1} score={game.sc1} seed={game.s1} isTop={true}/>
       <TeamRow team={game.t2} score={game.sc2} seed={game.s2} isTop={false}/>
     </div>
@@ -63,7 +63,7 @@ function GameCell({game,roundIdx,currentPlayer,allPlayers}){
 
 function RegionBracket({games,currentPlayer,allPlayers}){
   if(!games||games.length===0)return null;
-  const GH=44,R1_GAP=10,COL=244,CELL_W=224;const pos=[];
+  const GH=44,R1_GAP=10,COL=268,CELL_W=248;const pos=[];
   pos.push(games[0].map((_,i)=>i*(GH+R1_GAP)));
   for(let r=1;r<games.length;r++){const prev=pos[r-1];pos.push(games[r].map((_,i)=>(prev[i*2]!=null&&prev[i*2+1]!=null)?(prev[i*2]+prev[i*2+1])/2:0));}
   const totalH=pos[0][pos[0].length-1]+GH+20;
