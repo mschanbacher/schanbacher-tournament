@@ -377,6 +377,15 @@ function AdminView({activeYear,mob}) {
   // New season state
   const [newYear, setNewYear] = useState("");
   const [newRegions, setNewRegions] = useState("East,West,Midwest,South");
+  const [roundTimes, setRoundTimes] = useState({
+    0: "", // First Four
+    1: "", // Round 1
+    2: "", // Round 2
+    3: "", // Sweet 16
+    4: "", // Elite 8
+    5: "", // Final Four
+    6: "", // Championship
+  });
   
   // First Four fix state
   const [ffGames, setFfGames] = useState([]);
@@ -484,6 +493,8 @@ function AdminView({activeYear,mob}) {
   // Initialize new season
   const handleNewSeason = async () => {
     if (!newYear) return;
+    // Validate that at least First Four and Round 1 times are set
+    if (!roundTimes[0] || !roundTimes[1]) { alert("Please set at least the First Four and Round 1 tipoff times before creating the tournament."); return; }
     if (!confirm("Create tournament for " + newYear + "?")) return;
     const {supabase} = await import("../lib/supabase");
     const yr = parseInt(newYear);
@@ -495,7 +506,13 @@ function AdminView({activeYear,mob}) {
     for (const p of ["TLS","MJS","JRS"]) {
       await supabase.from("season_results").insert({year: yr, player_id: p, total_score: 0});
     }
-    setMsg(`Created tournament ${yr} with regions: ${regionList.join(", ")}. Add games via SQL or future game entry UI.`);
+    // Insert round schedule with tipoff times
+    for (let rnd = 0; rnd <= 6; rnd++) {
+      if (roundTimes[rnd]) {
+        await supabase.from("round_schedule").insert({year: yr, round: rnd, tipoff_time: new Date(roundTimes[rnd]).toISOString()});
+      }
+    }
+    setMsg(`Created tournament ${yr} with regions: ${regionList.join(", ")} and round schedule saved. Add games via SQL or future game entry UI.`);
   };
 
   const pendingGames = games.filter(g => g.status !== "final");
@@ -563,7 +580,13 @@ function AdminView({activeYear,mob}) {
         <div style={{display:"flex",gap:8,marginBottom:8}}>
           <input type="number" value={newYear} onChange={e=>setNewYear(e.target.value)} placeholder="Year (e.g. 2027)" style={{...inputStyle,flex:1}}/>
         </div>
-        <input type="text" value={newRegions} onChange={e=>setNewRegions(e.target.value)} placeholder="Regions (comma-separated)" style={{...inputStyle,marginBottom:8}}/>
+        <input type="text" value={newRegions} onChange={e=>setNewRegions(e.target.value)} placeholder="Regions (comma-separated)" style={{...inputStyle,marginBottom:12}}/>
+        <div style={{fontSize:11,fontWeight:600,color:C.textMid,letterSpacing:1,marginBottom:8}}>ROUND SCHEDULE (earliest tipoff per round)</div>
+        {[["First Four",0],["Round 1",1],["Round 2",2],["Sweet 16",3],["Elite 8",4],["Final Four",5],["Championship",6]].map(([label,rnd])=>(<div key={rnd} style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+          <span style={{fontSize:11,color:C.textMid,width:100}}>{label}</span>
+          <input type="datetime-local" value={roundTimes[rnd]} onChange={e=>setRoundTimes(prev=>({...prev,[rnd]:e.target.value}))} style={{...inputStyle,flex:1}}/>
+        </div>))}
+        <div style={{fontSize:10,color:C.textLight,marginTop:4,marginBottom:12}}>Set at least First Four and Round 1 times. Others can be updated later.</div>
         <button onClick={handleNewSeason} style={btnStyle}>Create Tournament</button>
       </div>
 
