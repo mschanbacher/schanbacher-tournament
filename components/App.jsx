@@ -173,7 +173,7 @@ function PicksView({currentPlayer,activeYear,tournaments,mob}){
   // Current round data
   const roundGames = allGames.filter(g => g.round === currentRound && g.team1 && g.team2);
   const locked = roundGames.some(g => g.status === "live" || g.status === "final");
-  const submitted = roundGames.length > 0 && roundGames.every(g => myPicks[g.id]);
+  const submitted = roundGames.length > 0 && roundGames.every(g => allPicks[g.id]);
   const allPicked = roundGames.length > 0 && roundGames.every(g => myPicks[g.id]);
 
   // Available round tabs
@@ -196,7 +196,10 @@ function PicksView({currentPlayer,activeYear,tournaments,mob}){
     if (!confirm("Clear your " + roundNames[currentRound] + " picks? You can re-submit before tipoff.")) return;
     const {supabase} = await import("../lib/supabase");
     const gameIds = roundGames.map(g => g.id);
-    for (const gid of gameIds) { await supabase.from("picks").delete().eq("game_id", gid).eq("player_id", currentPlayer); }
+    // Delete all picks for these games for this player
+    const {error} = await supabase.from("picks").delete().in("game_id", gameIds).eq("player_id", currentPlayer);
+    if (error) { console.error("Clear picks error:", error); alert("Error clearing picks. Try again."); return; }
+    // Update local state
     setMyPicks(prev => { const n = {...prev}; for (const gid of gameIds) delete n[gid]; return n; });
     setAllPicks(prev => { const n = {...prev}; for (const gid of gameIds) delete n[gid]; return n; });
   };
