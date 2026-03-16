@@ -196,9 +196,23 @@ function PicksView({currentPlayer,activeYear,tournaments,mob}){
     if (!confirm("Clear your " + roundNames[currentRound] + " picks? You can re-submit before tipoff.")) return;
     const {supabase} = await import("../lib/supabase");
     const gameIds = roundGames.map(g => g.id);
-    // Delete all picks for these games for this player
-    const {error} = await supabase.from("picks").delete().in("game_id", gameIds).eq("player_id", currentPlayer);
-    if (error) { console.error("Clear picks error:", error); alert("Error clearing picks. Try again."); return; }
+    console.log("CLEAR: player=", currentPlayer, "round=", currentRound, "gameIds=", gameIds);
+    // First check what picks exist
+    const {data: before, error: checkErr} = await supabase.from("picks").select("*").in("game_id", gameIds).eq("player_id", currentPlayer);
+    console.log("CLEAR: picks found before delete:", before?.length, before, "error:", checkErr);
+    // Delete
+    const {data: deleted, error, count} = await supabase.from("picks").delete().in("game_id", gameIds).eq("player_id", currentPlayer).select();
+    console.log("CLEAR: delete result - data:", deleted, "error:", error, "count:", count);
+    if (error) { console.error("Clear picks error:", error); alert("Error clearing picks: " + error.message); return; }
+    // Verify deletion
+    const {data: after} = await supabase.from("picks").select("*").in("game_id", gameIds).eq("player_id", currentPlayer);
+    console.log("CLEAR: picks remaining after delete:", after?.length, after);
+    if (after && after.length > 0) {
+      console.error("CLEAR: PICKS STILL EXIST AFTER DELETE!");
+      alert("Warning: " + after.length + " picks were not deleted. Check console for details.");
+    } else {
+      console.log("CLEAR: Success - all picks deleted");
+    }
     // Update local state
     setMyPicks(prev => { const n = {...prev}; for (const gid of gameIds) delete n[gid]; return n; });
     setAllPicks(prev => { const n = {...prev}; for (const gid of gameIds) delete n[gid]; return n; });
