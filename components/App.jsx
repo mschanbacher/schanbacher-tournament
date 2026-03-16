@@ -56,9 +56,9 @@ function RegionBracket({games,currentPlayer,allPlayers}){
 function BracketDisplay({bracket,currentPlayer}){
   const[region,setRegion]=useState(null);const[showFF,setShowFF]=useState(false);const[showF4,setShowF4]=useState(false);
   const regionNames=Object.keys(bracket.regions||{});const allPlayers=bracket.players||[];
-  useEffect(()=>{if(regionNames.length>0&&!region&&!showFF&&!showF4)setRegion(regionNames[0]);},[regionNames.length]);
+  useEffect(()=>{if(regionNames.length>0&&!region&&!showFF&&!showF4)setRegion(regionNames[0]);},[regionNames.length,region,showFF,showF4]);
   const regionData=region&&bracket.regions?.[region];
-  const regionGames=regionData?[regionData.r1||[],regionData.r2||[],regionData.s16||[],regionData.e8||[]].filter(r=>r.length>0):null;
+  const regionGamesAll=regionData?[regionData.r1||[],regionData.r2||[],regionData.s16||[],regionData.e8||[]]:null;const regionGames=regionGamesAll?regionGamesAll.filter(r=>r.length>0):null;
   return(<div>
     <div style={{display:"flex",gap:20,alignItems:"center",marginBottom:16,fontSize:11,color:C.textMid}}>
       <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:3,height:12,background:C.correct}}/> Correct</div>
@@ -73,7 +73,7 @@ function BracketDisplay({bracket,currentPlayer}){
     <div style={{overflowX:"auto",paddingBottom:16}}>
       {showF4?(<div style={{padding:"8px 0"}}><Lbl>First Four — 1pt each</Lbl><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,maxWidth:500}}>{(bracket.play_in||[]).map((g,i)=><GameCell key={i} game={g} roundIdx={0} currentPlayer={currentPlayer} allPlayers={allPlayers}/>)}</div></div>)
       :showFF?(<div style={{display:"flex",alignItems:"center",gap:48,padding:"20px 0"}}><div><Lbl>Final Four — 5pts</Lbl><div style={{display:"flex",flexDirection:"column",gap:48}}>{(bracket.ff||[]).map((g,i)=><GameCell key={i} game={g} roundIdx={5} currentPlayer={currentPlayer} allPlayers={allPlayers}/>)}</div></div><div><Lbl>Championship — 6pts</Lbl>{bracket.ch&&<GameCell game={bracket.ch} roundIdx={6} currentPlayer={currentPlayer} allPlayers={allPlayers}/>}{bracket.ch?.w&&(<div style={{marginTop:16,padding:"8px 16px",borderLeft:`3px solid ${C.wrong}`,background:C.surface}}><div style={{fontSize:9,letterSpacing:2,color:C.textLight,textTransform:"uppercase"}}>Champion</div><div style={{fontSize:18,fontWeight:700,color:C.text,marginTop:2}}>{bracket.ch.w}</div></div>)}</div></div>)
-      :regionGames&&regionGames.length>0?<RegionBracket games={regionGames} currentPlayer={currentPlayer} allPlayers={allPlayers}/>:<div style={{padding:40,textAlign:"center",color:C.textLight}}>Games not yet scheduled for this round</div>}
+      :regionGames&&regionGames.length>0?<RegionBracket games={regionGames} currentPlayer={currentPlayer} allPlayers={allPlayers}/>:region?<div style={{padding:40,textAlign:"center",color:C.textLight}}>No games loaded for {region} region yet</div>:<div style={{padding:40,textAlign:"center",color:C.textLight}}>Select a region above</div>}
     </div>
   </div>);
 }
@@ -95,7 +95,7 @@ function Dashboard({seasonResults,tournaments}){
 function BracketView({currentPlayer,activeYear}){
   const[bracket,setBracket]=useState(null);const[loading,setLoading]=useState(true);
   useEffect(()=>{if(activeYear)fetchBracketForYear(activeYear).then(b=>{setBracket(b);setLoading(false);}).catch(e=>{console.error(e);setLoading(false);});},[activeYear]);
-  if(loading||!bracket)return<Loading/>;
+  if(loading||!bracket)return<Loading/>;console.log('Bracket data:',JSON.stringify({regions:Object.keys(bracket.regions),r1Counts:Object.fromEntries(Object.entries(bracket.regions).map(([k,v])=>[k,(v.r1||[]).length])),playIn:bracket.play_in?.length,ff:bracket.ff?.length}));
   return(<div style={{padding:"32px 40px",maxWidth:1200,margin:"0 auto"}}><div style={{marginBottom:16}}><Lbl>{activeYear} NCAA Tournament</Lbl><h2 style={{fontSize:28,color:C.text,margin:"4px 0",fontWeight:700,lineHeight:1}}>Bracket</h2></div><BracketDisplay bracket={bracket} currentPlayer={currentPlayer}/></div>);
 }
 
@@ -130,7 +130,7 @@ function PicksView({currentPlayer,activeYear,tournaments}){
       for(const rnd of[0,1,2,3,4,5,6]){
         const rGames=rounds[rnd]||[];
         // Only show if teams are determined (not placeholder TBD)
-        const validGames=rGames.filter(g=>g.team1&&g.team2&&!g.team1.includes('/')&&!g.team2.includes('/'));
+        const validGames=rGames.filter(g=>g.team1&&g.team2);
         const unpicked=validGames.filter(g=>!pickedGameIds.has(g.id));
         if(unpicked.length>0){pickRound=rnd;pickGames=validGames;break;}
       }
