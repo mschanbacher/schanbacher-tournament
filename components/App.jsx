@@ -32,15 +32,16 @@ function useIsMobile() {
 function Lbl({children}){return<div style={{fontSize:9,letterSpacing:3,color:C.textLight,textTransform:"uppercase",fontWeight:600,marginBottom:12}}>{children}</div>}
 function Loading(){return<div style={{padding:"60px 40px",textAlign:"center",color:C.textLight,fontSize:13}}>Loading...</div>}
 
-function GameCell({game,roundIdx,currentPlayer,allPlayers}){
+function GameCell({game,roundIdx,currentPlayer,allPlayers,roundLocked}){
   if(!game||(!game.t1&&!game.t2))return(<div style={{display:"flex",alignItems:"stretch"}}><div style={{width:24,border:"1px dashed #e0ddd6",borderRight:"none"}}/>
 <div style={{width:200,border:"1px dashed #e0ddd6",background:"#f5f3ef",display:"flex",alignItems:"center",justifyContent:"center",height:40}}><span style={{fontSize:10,color:C.textLight,letterSpacing:1}}>TBD</span></div><div style={{width:24,border:"1px dashed #e0ddd6",borderLeft:"none"}}/></div>);
   const isLive=game.status==="live";const isFinal=game.status==="final";const isPending=!isLive&&!isFinal;const pts=RP[roundIdx]||0;
   const otherPlayers=(allPlayers||[]).filter(p=>p!==currentPlayer);
   const myPick=game.picks?.[currentPlayer];const gotIt=myPick===game.w;
-  // Pick visibility: hide other picks if tipoff hasn't passed
+  // Pick visibility: show picks once the round is locked
   const tipoff=game.tipoff||game.tipoff_time;
-  const tippedOff=tipoff?new Date(tipoff)<=new Date():(!isPending);
+  const gameTippedOff=tipoff?new Date(tipoff)<=new Date():(!isPending);
+  const tippedOff=roundLocked||gameTippedOff;
   // Determine if picks are split
   const allPicks=allPlayers.map(p=>game.picks?.[p]).filter(Boolean);
   const uniquePicks=new Set(allPicks);
