@@ -50,3 +50,8 @@ html, body {
   overflow-x: hidden;
   max-width: 100vw;
 }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}

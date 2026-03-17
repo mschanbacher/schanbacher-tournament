@@ -35,7 +35,7 @@ function Loading(){return<div style={{padding:"60px 40px",textAlign:"center",col
 function GameCell({game,roundIdx,currentPlayer,allPlayers}){
   if(!game||(!game.t1&&!game.t2))return(<div style={{display:"flex",alignItems:"stretch"}}><div style={{width:24,border:"1px dashed #e0ddd6",borderRight:"none"}}/>
 <div style={{width:200,border:"1px dashed #e0ddd6",background:"#f5f3ef",display:"flex",alignItems:"center",justifyContent:"center",height:40}}><span style={{fontSize:10,color:C.textLight,letterSpacing:1}}>TBD</span></div><div style={{width:24,border:"1px dashed #e0ddd6",borderLeft:"none"}}/></div>);
-  const isPending=game.w===null||game.w===undefined;const pts=RP[roundIdx]||0;
+  const isLive=game.status==="live";const isFinal=game.status==="final";const isPending=!isLive&&!isFinal;const pts=RP[roundIdx]||0;
   const otherPlayers=(allPlayers||[]).filter(p=>p!==currentPlayer);
   const myPick=game.picks?.[currentPlayer];const gotIt=myPick===game.w;
   // Pick visibility: hide other picks if tipoff hasn't passed
@@ -47,24 +47,25 @@ function GameCell({game,roundIdx,currentPlayer,allPlayers}){
   const isSplit=tippedOff&&uniquePicks.size>1;
   const TeamRow=({team,score,seed,isTop})=>{
     if(!team)return null;const isW=game.w===team;const isPicked=myPick===team;
-    // Only show other players' initials if tipoff has passed
+    const isLeading=isLive&&score!=null&&((isTop&&game.sc1>game.sc2)||(!isTop&&game.sc2>game.sc1));
     const otherPicks=tippedOff?otherPlayers.map(op=>game.picks?.[op]===team?op:null).filter(Boolean):[];
-    let bg=C.surface;if(!isPending){if(isPicked&&isW)bg=C.correctBg;else if(isPicked&&!isW)bg=C.wrongBg;}
+    let bg=C.surface;
+    if(isFinal){if(isPicked&&isW)bg=C.correctBg;else if(isPicked&&!isW)bg=C.wrongBg;}
     return(<div style={{display:"flex",alignItems:"center",padding:"3px 6px",height:20,background:bg,borderTop:isTop?"none":"1px solid "+C.borderLight}}>
-      {!isPending&&isPicked&&<div style={{width:3,height:13,marginRight:5,flexShrink:0,background:isW?C.correct:C.wrong}}/>}
-      {isPending&&isPicked&&<div style={{width:3,height:13,marginRight:5,flexShrink:0,background:C.text}}/>}
+      {isFinal&&isPicked&&<div style={{width:3,height:13,marginRight:5,flexShrink:0,background:isW?C.correct:C.wrong}}/>}
+      {(isPending||isLive)&&isPicked&&<div style={{width:3,height:13,marginRight:5,flexShrink:0,background:C.text}}/>}
       {!isPicked&&<div style={{width:8,flexShrink:0}}/>}
-      <div style={{flex:1,overflow:"hidden",minWidth:0}}><span style={{fontSize:11,fontWeight:isW||(isPending&&isPicked)?700:400,color:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",display:"block"}}>{seed!=null&&<span style={{color:C.textLight,fontSize:10,marginRight:3,fontWeight:400}}>{seed}</span>}{team}</span></div>
+      <div style={{flex:1,overflow:"hidden",minWidth:0}}><span style={{fontSize:11,fontWeight:isW||isLeading||(isPending&&isPicked)?700:400,color:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",display:"block"}}>{seed!=null&&<span style={{color:C.textLight,fontSize:10,marginRight:3,fontWeight:400}}>{seed}</span>}{team}</span></div>
       <div style={{display:"flex",gap:2,marginLeft:4,marginRight:4,flexShrink:0}}>{otherPicks.map(op=><span key={op} style={{fontSize:8,fontWeight:700,letterSpacing:0.5,color:C.text,opacity:0.7}}>{op[0]}</span>)}</div>
-      <span style={{fontSize:11,fontWeight:isW?700:400,color:isPending?C.textLight:C.text,fontVariantNumeric:"tabular-nums",minWidth:20,textAlign:"right",flexShrink:0}}>{score??""}</span>
+      <span style={{fontSize:11,fontWeight:isW||isLeading?700:400,color:isPending?C.textLight:isLive?"#c43e1c":C.text,fontVariantNumeric:"tabular-nums",minWidth:20,textAlign:"right",flexShrink:0}}>{score??""}</span>
     </div>);
   };
   const bdr=isPending?C.borderLight:C.border;
   const espnUrl=game.espnId?`https://www.espn.com/mens-college-basketball/game/_/gameId/${game.espnId}`:null;
   const Wrap=({children})=>espnUrl&&!isPending?<a href={espnUrl} target="_blank" rel="noopener noreferrer" style={{display:"flex",alignItems:"stretch",textDecoration:"none",color:"inherit",cursor:"pointer"}}>{children}</a>:<div style={{display:"flex",alignItems:"stretch"}}>{children}</div>;
   return(<Wrap>
-    <div style={{width:24,background:isSplit?"#C6982B":"transparent",flexShrink:0,border:"1px solid "+bdr,borderRight:"none"}}/>
-    <div style={{width:200,border:"1px solid "+bdr,background:isPending?C.bg:C.surface,opacity:isPending?0.65:1}}>
+    <div style={{width:24,background:isLive?"#c43e1c":isSplit?"#C6982B":"transparent",flexShrink:0,border:"1px solid "+(isLive?"#c43e1c":bdr),borderRight:"none",display:"flex",alignItems:"center",justifyContent:"center"}}>{isLive&&<div style={{width:6,height:6,background:"#fff",animation:"pulse 1.5s ease-in-out infinite"}}/>}{null}</div>
+    <div style={{width:200,border:"1px solid "+(isLive?"#c43e1c":bdr),background:isPending?C.bg:C.surface,opacity:isPending?0.65:1}}>
       <TeamRow team={game.t1} score={game.sc1} seed={game.s1} isTop={true}/>
       <TeamRow team={game.t2} score={game.sc2} seed={game.s2} isTop={false}/>
     </div>
@@ -111,7 +112,7 @@ function BracketDisplay({bracket,currentPlayer}){
   </div>);
 }
 
-function Dashboard({seasonResults,tournaments,mob}){
+function Dashboard({seasonResults,tournaments,mob,onRefresh}){
   if(!seasonResults?.length)return<Loading/>;
   const years=[...new Set(seasonResults.map(r=>r.year))].sort((a,b)=>b-a);const latestYear=years[0];
   const latest=seasonResults.filter(r=>r.year===latestYear).sort((a,b)=>b.total_score-a.total_score);
@@ -127,9 +128,13 @@ function Dashboard({seasonResults,tournaments,mob}){
 
 function BracketView({currentPlayer,activeYear,mob}){
   const[bracket,setBracket]=useState(null);const[loading,setLoading]=useState(true);
-  useEffect(()=>{if(activeYear)fetchBracketForYear(activeYear).then(b=>{setBracket(b);setLoading(false);}).catch(e=>{console.error(e);setLoading(false);});},[activeYear]);
+  const loadBracket=useCallback(()=>{if(activeYear)fetchBracketForYear(activeYear).then(b=>{setBracket(b);setLoading(false);}).catch(e=>{console.error(e);setLoading(false);});},[activeYear]);
+  useEffect(()=>{loadBracket();},[loadBracket]);
+  // Auto-refresh every 30 seconds if any games are live
+  useEffect(()=>{if(!bracket)return;const hasLive=[...bracket.play_in,...Object.values(bracket.regions).flatMap(r=>[...r.r1,...r.r2,...r.s16,...r.e8]),...bracket.ff,bracket.ch].filter(Boolean).some(g=>g.status==="live");if(hasLive){const t=setInterval(loadBracket,30000);return()=>clearInterval(t);};},[bracket,loadBracket]);
   if(loading||!bracket)return<Loading/>;
-  return(<div style={{padding:mob?"20px 16px":"32px 40px",maxWidth:1200,margin:"0 auto"}}><div style={{marginBottom:16}}><Lbl>{activeYear} NCAA Tournament</Lbl><h2 style={{fontSize:28,color:C.text,margin:"4px 0",fontWeight:700,lineHeight:1}}>Bracket</h2></div><BracketDisplay bracket={bracket} currentPlayer={currentPlayer}/></div>);
+  const hasLiveGames=bracket&&[...bracket.play_in,...Object.values(bracket.regions).flatMap(r=>[...r.r1,...r.r2,...r.s16,...r.e8]),...bracket.ff,bracket.ch].filter(Boolean).some(g=>g.status==="live");
+  return(<div style={{padding:mob?"20px 16px":"32px 40px",maxWidth:1200,margin:"0 auto"}}><div style={{marginBottom:16,display:"flex",alignItems:"baseline",justifyContent:"space-between"}}><div><Lbl>{activeYear} NCAA Tournament</Lbl><h2 style={{fontSize:28,color:C.text,margin:"4px 0",fontWeight:700,lineHeight:1}}>Bracket</h2></div>{hasLiveGames&&<div style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:8,height:8,background:"#c43e1c",animation:"pulse 1.5s ease-in-out infinite"}}/><span style={{fontSize:11,color:"#c43e1c",fontWeight:600,letterSpacing:1}}>LIVE</span><button onClick={loadBracket} style={{background:"none",border:"1px solid "+C.border,color:C.textMid,padding:"3px 10px",cursor:"pointer",fontSize:10,fontFamily:"inherit",letterSpacing:1}}>Refresh</button></div>}</div><BracketDisplay bracket={bracket} currentPlayer={currentPlayer}/></div>);
 }
 
 // ─── PICKS PAGE — the critical new feature ───
