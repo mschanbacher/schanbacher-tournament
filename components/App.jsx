@@ -512,8 +512,13 @@ function UpsetsTab({tournaments,mob}){
         yearStats.push({year,upsets:yearUpsetCount,calledBy:yearCalledBy});
       }
       
-      // Sort upsets by seed diff descending, then year descending
-      allUpsets.sort((a,b)=>b.seedDiff-a.seedDiff||b.year-a.year);
+      // Sort: upsets someone called first (by seed diff), then uncalled (by seed diff)
+      allUpsets.sort((a,b)=>{
+        const aCalled=a.calledBy.length>0?1:0;
+        const bCalled=b.calledBy.length>0?1:0;
+        if(aCalled!==bCalled)return bCalled-aCalled;
+        return b.seedDiff-a.seedDiff||b.year-a.year;
+      });
       
       // Compute overall rates
       const totalUpsets=allUpsets.length;
@@ -595,8 +600,8 @@ function UpsetsTab({tournaments,mob}){
     
     {/* Biggest upsets correctly called */}
     <div style={secStyle}>
-      <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>Biggest upsets correctly called</div>
-      <div style={{fontSize:12,color:C.textMid,marginBottom:12}}>Ranked by seed difference</div>
+      <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>Best upset calls</div>
+      <div style={{fontSize:12,color:C.textMid,marginBottom:12}}>Upsets someone predicted, ranked by seed difference</div>
       <div style={{display:"flex",padding:"6px 0",borderBottom:"2px solid "+C.text,fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>
         <span style={{width:52}}>SEEDS</span>
         <span style={{flex:1}}>GAME</span>
@@ -604,7 +609,7 @@ function UpsetsTab({tournaments,mob}){
         <span style={{width:28,textAlign:"right"}}>RND</span>
         <span style={{width:44,textAlign:"right"}}>YEAR</span>
       </div>
-      {data.allUpsets.slice(0,15).map((u,i)=>(<div key={i} style={{display:"flex",alignItems:"center",padding:"8px 0",borderBottom:"1px solid "+C.borderLight,fontSize:13}}>
+      {data.allUpsets.filter(u=>u.calledBy.length>0).slice(0,15).map((u,i)=>(<div key={i} style={{display:"flex",alignItems:"center",padding:"8px 0",borderBottom:"1px solid "+C.borderLight,fontSize:13}}>
         <span style={{width:52,fontWeight:500,color:C.textLight,fontVariantNumeric:"tabular-nums"}}>{u.winnerSeed} v {u.loserSeed}</span>
         <span style={{flex:1,color:C.text,overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}><span style={{fontWeight:600}}>{u.winner}</span> def. {u.loser}</span>
         <span style={{width:100,display:"flex",gap:3,justifyContent:"flex-end"}}>
@@ -613,7 +618,7 @@ function UpsetsTab({tournaments,mob}){
         <span style={{width:28,textAlign:"right",color:C.textLight,fontSize:11}}>{u.roundLabel}</span>
         <span style={{width:44,textAlign:"right",color:C.textMid,fontSize:12,fontVariantNumeric:"tabular-nums"}}>{u.year}</span>
       </div>))}
-      {data.allUpsets.length>15&&<div style={{padding:"10px 0",fontSize:12,color:C.textLight,fontStyle:"italic",textAlign:"center"}}>{data.allUpsets.length-15} more upsets in database</div>}
+      {(()=>{const called=data.allUpsets.filter(u=>u.calledBy.length>0);return called.length>15?<div style={{padding:"10px 0",fontSize:12,color:C.textLight,fontStyle:"italic",textAlign:"center"}}>{called.length-15} more called upsets</div>:null;})()}
     </div>
     
     {/* Best upset callers */}
