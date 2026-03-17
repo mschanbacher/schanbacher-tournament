@@ -628,19 +628,28 @@ function PlayerSelect({onSelect}){
 }
 
 export default function App(){
-  const[player,setPlayer]=useState(null);const[view,setView]=useState("dashboard");
+  const[fontScale,setFontScale]=useState(()=>{if(typeof window!=="undefined"){return parseFloat(localStorage.getItem("schanbacher_fontScale"))||1}return 1});
+  const[showSettings,setShowSettings]=useState(false);
+  const updateFontScale=(s)=>{setFontScale(s);if(typeof window!=="undefined")localStorage.setItem("schanbacher_fontScale",String(s));};
+  const[player,setPlayer]=useState(()=>{if(typeof window!=="undefined"){return localStorage.getItem("schanbacher_player")||null}return null});const[view,setView]=useState("dashboard");
   const[seasonResults,setSeasonResults]=useState(null);const[tournaments,setTournaments]=useState(null);const[activeYear,setActiveYear]=useState(null);
   useEffect(()=>{
     fetchAllSeasonResults().then(setSeasonResults).catch(console.error);
     fetchTournaments().then(ts=>{setTournaments(ts);const ay=getActiveYear(ts);setActiveYear(ay);}).catch(console.error);
   },[]);
-  const mob=useIsMobile();if(!player)return<PlayerSelect onSelect={setPlayer}/>;
+  const mob=useIsMobile();const selectPlayer=(p)=>{setPlayer(p);if(typeof window!=="undefined")localStorage.setItem("schanbacher_player",p);};const logout=()=>{setPlayer(null);if(typeof window!=="undefined")localStorage.removeItem("schanbacher_player");};if(!player)return<PlayerSelect onSelect={selectPlayer}/>;
   const baseTabs=[{id:"dashboard",label:"Dashboard"},{id:"bracket",label:"Bracket"},{id:"picks",label:"Picks"},{id:"history",label:"History"},{id:"records",label:"Records"}];const tabs=player==="MJS"?[...baseTabs,{id:"admin",label:"Admin"}]:baseTabs;
-  return(<div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Suisse Intl','Helvetica Neue',Helvetica,sans-serif",color:C.text}}>
+  return(<div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Suisse Intl','Helvetica Neue',Helvetica,sans-serif",color:C.text,fontSize:14*fontScale}} onClick={()=>{if(showSettings)setShowSettings(false)}}>
     <nav style={{display:"flex",flexWrap:mob?"wrap":"nowrap",alignItems:"center",justifyContent:"space-between",padding:mob?"8px 16px":"0 40px",height:mob?"auto":48,background:C.surface,borderBottom:`1px solid ${C.border}`,position:"sticky",top:0,zIndex:100,gap:mob?4:0}}>
       <div style={{display:"flex",alignItems:"baseline",gap:8}}><span style={{fontSize:13,fontWeight:700,color:C.text,letterSpacing:0.5}}>Schanbacher</span><span style={{fontSize:9,color:C.textLight,letterSpacing:2,textTransform:"uppercase"}}>Tournament</span></div>
       <div style={{display:"flex",gap:0,width:mob?"100%":"auto",overflowX:mob?"auto":"visible",overflowY:"hidden",WebkitOverflowScrolling:"touch",order:mob?3:0}}>{tabs.map(t=><button key={t.id} onClick={()=>setView(t.id)} style={{background:"none",border:"none",borderBottom:view===t.id?`2px solid ${C.text}`:"2px solid transparent",color:view===t.id?C.text:C.textLight,padding:mob?"8px 10px":"14px 14px 12px",cursor:"pointer",fontSize:mob?10:11,fontWeight:600,letterSpacing:1,textTransform:"uppercase",fontFamily:"inherit",whiteSpace:"nowrap"}}>{t.label}</button>)}</div>
-      <div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:12,fontWeight:700,color:C[player],letterSpacing:1}}>{player}</span><button onClick={()=>setPlayer(null)} style={{background:"none",border:`1px solid ${C.border}`,color:C.textLight,padding:"3px 10px",cursor:"pointer",fontSize:10,fontFamily:"inherit",letterSpacing:1}}>Logout</button></div>
+      <div style={{display:"flex",alignItems:"center",gap:8,position:"relative"}}><span style={{fontSize:12,fontWeight:700,color:C[player],letterSpacing:1}}>{player}</span><button onClick={()=>setShowSettings(!showSettings)} style={{background:"none",border:`1px solid ${C.border}`,color:C.textLight,padding:"3px 10px",cursor:"pointer",fontSize:10,fontFamily:"inherit",letterSpacing:1}}>Settings</button><button onClick={logout} style={{background:"none",border:`1px solid ${C.border}`,color:C.textLight,padding:"3px 10px",cursor:"pointer",fontSize:10,fontFamily:"inherit",letterSpacing:1}}>Logout</button>
+      {showSettings&&<div onClick={(e)=>e.stopPropagation()} style={{position:"absolute",top:"100%",right:0,marginTop:8,background:C.surface,border:`1px solid ${C.border}`,padding:"16px",zIndex:200,width:220}}>
+        <div style={{fontSize:10,letterSpacing:2,color:C.textLight,textTransform:"uppercase",fontWeight:600,marginBottom:10}}>Text Size</div>
+        <div style={{display:"flex",gap:4}}>{[{label:"S",value:0.85},{label:"M",value:1},{label:"L",value:1.15},{label:"XL",value:1.3}].map(opt=><button key={opt.label} onClick={()=>updateFontScale(opt.value)} style={{flex:1,padding:"6px 0",background:fontScale===opt.value?C.text:"transparent",color:fontScale===opt.value?"#fff":C.textMid,border:`1px solid ${fontScale===opt.value?C.text:C.border}`,fontSize:11,fontWeight:600,fontFamily:"inherit",cursor:"pointer"}}>{opt.label}</button>)}</div>
+        <div style={{fontSize:10,color:C.textLight,marginTop:6}}>{fontScale===0.85?"Small":fontScale===1?"Normal":fontScale===1.15?"Large":"Extra large"}</div>
+      </div>}
+    </div>
     </nav>
     {view==="dashboard"&&<Dashboard seasonResults={seasonResults} tournaments={tournaments} mob={mob}/>}
     {view==="bracket"&&<BracketView currentPlayer={player} activeYear={activeYear} mob={mob}/>}
