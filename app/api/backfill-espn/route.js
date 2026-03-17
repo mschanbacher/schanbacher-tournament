@@ -97,6 +97,14 @@ const ALIASES = {
   'ut arlington': ['texas-arlington','ut arlington','texas arlington'],
   'mississippi valley': ['mississippi valley','mississippi valley state'],
   'mississippi valley state': ['mississippi valley','mississippi valley state'],
+  'tennessee chatanooga': ['chattanooga','tennessee chatanooga','tennessee chattanooga'],
+  'tennessee chattanooga': ['chattanooga','tennessee chatanooga','tennessee chattanooga'],
+  'la salle': ['la salle','lasalle'],
+  'liu': ['liu','liu brooklyn','long island university','long island'],
+  'ut san antonio': ['ut san antonio','utsa'],
+  'southern methodist': ['southern methodist','smu'],
+  'colorado state': ['colorado state','colorado st'],
+  'murray state': ['murray state','murray st'],
   'san diego': ['san diego','san diego toreros'],
 }
 
@@ -105,6 +113,8 @@ function normalize(name) {
   return name
     .replace(/\./g, '')
     .replace(/['']/g, "'")
+    .replace(/-/g, ' ')
+    .replace(/[()]/g, '')
     .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase()
