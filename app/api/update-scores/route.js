@@ -99,24 +99,20 @@ function namesMatch(a, b) {
   const nb = normalize(b)
   if (na === nb) return true
   if (na.includes(nb) || nb.includes(na)) return true
-  // Try with mascots stripped
   const sa = stripMascot(na)
   const sb = stripMascot(nb)
   if (sa === sb) return true
   if (sa.includes(sb) || sb.includes(sa)) return true
-  // Check aliases against both original and stripped names
-  const candidates = [na, sa]
-  const targets = [nb, sb]
-  for (const c of candidates) {
-    for (const t of targets) {
-      const aliasC = ALIASES[c] || []
-      const aliasT = ALIASES[t] || []
-      if (aliasC.includes(t) || aliasT.includes(c)) return true
-      for (const ac of aliasC) { if (ac === t || aliasT.includes(ac)) return true }
-      for (const at of aliasT) { if (at === c || aliasC.includes(at)) return true }
-    }
-  }
-  // Last word match (after stripping mascot)
+  // Gather all name variants for each side
+  const aNames = new Set([na, sa])
+  const bNames = new Set([nb, sb])
+  // Expand with aliases
+  for (const n of [na, sa]) { for (const al of (ALIASES[n] || [])) aNames.add(al) }
+  for (const n of [nb, sb]) { for (const al of (ALIASES[n] || [])) bNames.add(al) }
+  // Check if any variant of A matches any variant of B
+  for (const an of aNames) { if (bNames.has(an)) return true }
+  for (const bn of bNames) { if (aNames.has(bn)) return true }
+  // Last word match
   const lastA = sa.split(' ').pop()
   const lastB = sb.split(' ').pop()
   if (lastA.length > 4 && lastA === lastB) return true
