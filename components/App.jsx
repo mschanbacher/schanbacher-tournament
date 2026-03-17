@@ -203,14 +203,14 @@ function StatusBar({games,seasonResults,schedule,year,tourney,players,mob}){
 
 function Dashboard({seasonResults,tournaments,mob,onRefresh}){
   const[gameData,setGameData]=useState(null);const[schedule,setSchedule]=useState([]);
-  if(!seasonResults?.length)return<Loading/>;
-  const years=[...new Set(seasonResults.map(r=>r.year))].sort((a,b)=>b-a);const latestYear=years[0];
+  const years=seasonResults?.length?[...new Set(seasonResults.map(r=>r.year))].sort((a,b)=>b-a):[];
+  const latestYear=years[0]||null;
+  useEffect(()=>{if(!latestYear)return;(async()=>{const{supabase}=await import("../lib/supabase");const{data:games}=await supabase.from("games").select("*").eq("year",latestYear);setGameData(games||[]);const{data:sched}=await supabase.from("round_schedule").select("*").eq("year",latestYear);setSchedule(sched||[]);})();},[latestYear]);
+  useEffect(()=>{if(!latestYear)return;const t=setInterval(async()=>{const{supabase}=await import("../lib/supabase");const{data:games}=await supabase.from("games").select("*").eq("year",latestYear);if(games)setGameData(games);},30000);return()=>clearInterval(t);},[latestYear]);
+  if(!seasonResults?.length||!latestYear)return<Loading/>;
   const latest=seasonResults.filter(r=>r.year===latestYear).sort((a,b)=>b.total_score-a.total_score);
   const latestTourney=tournaments?.find(t=>t.year===latestYear);const isFinished=latestTourney?.status==='complete';
   const champCounts={};(tournaments||[]).filter(t=>t.status==='complete'&&t.champion_player).forEach(t=>{champCounts[t.champion_player]=(champCounts[t.champion_player]||0)+1;});
-  useEffect(()=>{if(!latestYear)return;(async()=>{const{supabase}=await import("../lib/supabase");const{data:games}=await supabase.from("games").select("*").eq("year",latestYear);setGameData(games||[]);const{data:sched}=await supabase.from("round_schedule").select("*").eq("year",latestYear);setSchedule(sched||[]);})();},[latestYear]);
-  // Auto-refresh game data every 30s
-  useEffect(()=>{const t=setInterval(async()=>{if(!latestYear)return;const{supabase}=await import("../lib/supabase");const{data:games}=await supabase.from("games").select("*").eq("year",latestYear);if(games)setGameData(games);},30000);return()=>clearInterval(t);},[latestYear]);
   return(<div style={{padding:mob?"20px 16px":"32px 40px",maxWidth:960,margin:"0 auto"}}>
     <div style={{marginBottom:40}}><Lbl>{isFinished?"Final Results":"Current Standings"}</Lbl><h2 style={{fontSize:32,color:C.text,margin:"4px 0 0",fontWeight:700,lineHeight:1}}>{latestYear}</h2>{isFinished&&latest[0]&&<div style={{fontSize:13,color:C.textMid,marginTop:6}}>Champion: <span style={{fontWeight:700,color:C[latest[0].player_id]}}>{latest[0].player_id}</span></div>}{!isFinished&&<div style={{fontSize:12,color:C.textMid,marginTop:6}}>Tournament in progress</div>}</div>
     <StatusBar games={gameData} seasonResults={seasonResults} schedule={schedule} year={latestYear} tourney={latestTourney} players={PLAYERS_ALL} mob={mob}/>
