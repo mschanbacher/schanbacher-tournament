@@ -9,12 +9,65 @@ const supabase = createClient(
 const ESPN_URL = 'https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard'
 
 // Team name normalization — ESPN names may differ slightly from what we stored
+const ALIASES = {
+  'uconn': ['connecticut','uconn'],
+  'connecticut': ['connecticut','uconn'],
+  'pitt': ['pittsburgh','pitt'],
+  'pittsburgh': ['pittsburgh','pitt'],
+  'fau': ['florida atlantic','fau'],
+  'florida atlantic': ['florida atlantic','fau'],
+  'ucsb': ['uc santa barbara','ucsb'],
+  'uc santa barbara': ['uc santa barbara','ucsb'],
+  'vcu': ['virginia commonwealth','vcu'],
+  'virginia commonwealth': ['virginia commonwealth','vcu'],
+  'ucf': ['ucf','central florida'],
+  'central florida': ['ucf','central florida'],
+  'smu': ['smu','southern methodist'],
+  'southern methodist': ['smu','southern methodist'],
+  'usc': ['usc','southern california','southern cal'],
+  'southern california': ['usc','southern california','southern cal'],
+  'nc state': ['nc state','north carolina state'],
+  'north carolina state': ['nc state','north carolina state'],
+  'umbc': ['umbc','maryland-baltimore county'],
+  'miami': ['miami','miami (fl)','miami hurricanes','miami florida'],
+  'miami (fl)': ['miami','miami (fl)','miami hurricanes'],
+  'miami (oh)': ['miami (oh)','miami (ohio)','miami oh','miami ohio','miami redhawks'],
+  'miami (ohio)': ['miami (oh)','miami (ohio)','miami oh'],
+  'texas a&m cc': ['texas a&m-corpus christi','texas a&m corpus christi','texas a&m cc','tamu-cc'],
+  'texas a&m-corpus christi': ['texas a&m-corpus christi','texas a&m corpus christi','texas a&m cc'],
+  'se missouri state': ['southeast missouri state','se missouri state','semo'],
+  'southeast missouri state': ['southeast missouri state','se missouri state','semo'],
+  'unc asheville': ['unc asheville','unc-asheville'],
+  'liu': ['liu','long island','long island university'],
+  'long island university': ['liu','long island','long island university'],
+  'fdu': ['fairleigh dickinson','fdu'],
+  'fairleigh dickinson': ['fairleigh dickinson','fdu'],
+  'cal baptist': ['california baptist','cal baptist'],
+  'california baptist': ['california baptist','cal baptist'],
+  'norhtern kentucky': ['northern kentucky','norhtern kentucky'],
+  'northern kentucky': ['northern kentucky','norhtern kentucky'],
+  'saint marys': ['saint marys','st marys','saint mary\'s','st mary\'s'],
+  'st johns': ['st johns','saint johns','st john\'s','saint john\'s'],
+  'st john\'s': ['st johns','saint johns','st john\'s','saint john\'s'],
+  'mount st marys': ['mount st marys','mount saint marys','mount st mary\'s','mt st mary\'s'],
+  'texas southern': ['texas southern'],
+  'prairie view a&m': ['prairie view a&m','prairie view'],
+  'prairie view': ['prairie view a&m','prairie view'],
+  'uc san diego': ['uc san diego'],
+  'siu edwardsville': ['siu edwardsville','siu-edwardsville','southern illinois-edwardsville','siue'],
+  'tennessee state': ['tennessee state','tennessee st'],
+  'north dakota state': ['north dakota state','north dakota st'],
+  'south dakota state': ['south dakota state','south dakota st'],
+  'charleston': ['charleston','college of charleston','coll of charleston'],
+  'college of charleston': ['charleston','college of charleston'],
+  'louisiana': ['louisiana','louisiana-lafayette','louisiana ragin'],
+}
+
 function normalize(name) {
   if (!name) return ''
   return name
     .replace(/\./g, '')
-    .replace(/'/g, "'")
-    .replace(/St\b/g, 'State')
+    .replace(/['']/g, "'")
     .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase()
@@ -25,12 +78,18 @@ function namesMatch(a, b) {
   const na = normalize(a)
   const nb = normalize(b)
   if (na === nb) return true
-  // Check if one contains the other (handles "Miami (OH)" vs "Miami (Ohio)" etc)
   if (na.includes(nb) || nb.includes(na)) return true
-  // Check last word match (handles "St. John's" vs "St John's")
+  // Check aliases
+  const aliasA = ALIASES[na] || []
+  const aliasB = ALIASES[nb] || []
+  if (aliasA.includes(nb) || aliasB.includes(na)) return true
+  // Check if any alias of A matches any alias of B
+  for (const aa of aliasA) { if (aliasB.includes(aa)) return true; if (aa === nb) return true; }
+  for (const bb of aliasB) { if (aliasA.includes(bb)) return true; if (bb === na) return true; }
+  // Last word match
   const lastA = na.split(' ').pop()
   const lastB = nb.split(' ').pop()
-  if (lastA.length > 3 && lastA === lastB) return true
+  if (lastA.length > 4 && lastA === lastB) return true
   return false
 }
 
