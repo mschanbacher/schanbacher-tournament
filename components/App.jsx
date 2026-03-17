@@ -494,9 +494,10 @@ function RecordsView({seasonResults,tournaments,mob}){
 }
 
 
-function HeadToHead({seasonResults,tournaments,mob}){
-  const [p1,setP1]=useState("TLS");
-  const [p2,setP2]=useState("MJS");
+function HeadToHead({seasonResults,tournaments,mob,currentPlayer}){
+  const others=PLAYERS_ALL.filter(p=>p!==currentPlayer);
+  const [p2,setP2]=useState(others[0]||"MJS");
+  const p1=currentPlayer;
   if(!seasonResults?.length)return <Loading/>;
   
   const completedResults=seasonResults.filter(r=>tournaments?.find(t=>t.year===r.year&&t.status==="complete"));
@@ -581,13 +582,9 @@ function HeadToHead({seasonResults,tournaments,mob}){
     <div style={{fontSize:12,color:C.textMid,marginBottom:20}}>{h2hYears.length} seasons ({h2hYears.length>0?`${h2hYears[h2hYears.length-1]}–${h2hYears[0]}`:""})</div>
     
     <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:28}}>
-      {PLAYERS_ALL.map(p=>{const isSelected=p===p1||p===p2;return(<button key={p} onClick={()=>{if(p===p1)return;if(p===p2)return;if(isSelected)return;setP2(p);}} style={{padding:"8px 20px",fontSize:14,fontWeight:600,letterSpacing:1,border:"1px solid "+(isSelected?C[p]:C.border),background:isSelected?C.surface:"transparent",color:isSelected?C[p]:C.textLight,cursor:"pointer",fontFamily:"inherit"}} onMouseDown={(e)=>{
-        e.preventDefault();
-        if(p===p1){/* already p1, do nothing */}
-        else if(p===p2){/* already p2, do nothing */}
-        else{/* swap: new player replaces p2 */setP2(p);}
-      }}>{p}</button>);})}
-      <span style={{fontSize:11,color:C.textLight,marginLeft:8}}>Click to swap opponent</span>
+      <div style={{padding:"8px 20px",fontSize:14,fontWeight:600,letterSpacing:1,border:"1px solid "+C[p1],background:C.surface,color:C[p1],fontFamily:"inherit"}}>{p1}</div>
+      <span style={{fontSize:13,color:C.textLight}}>vs</span>
+      {others.map(p=>(<button key={p} onClick={()=>setP2(p)} style={{padding:"8px 20px",fontSize:14,fontWeight:600,letterSpacing:1,border:"1px solid "+(p===p2?C[p]:C.border),background:p===p2?C.surface:"transparent",color:p===p2?C[p]:C.textLight,cursor:"pointer",fontFamily:"inherit"}}>{p}</button>))}
     </div>
     
     {/* Win/Loss Bar */}
@@ -970,7 +967,7 @@ export default function App(){
     {view==="picks"&&<PicksView currentPlayer={player} activeYear={activeYear} tournaments={tournaments} mob={mob}/>}
     {view==="history"&&<HallOfFame seasonResults={seasonResults} tournaments={tournaments} currentPlayer={player} mob={mob}/>}
     {view==="records"&&<RecordsView seasonResults={seasonResults} tournaments={tournaments} mob={mob}/>}
-    {view==="h2h"&&<HeadToHead seasonResults={seasonResults} tournaments={tournaments} mob={mob}/>}
+    {view==="h2h"&&<HeadToHead seasonResults={seasonResults} tournaments={tournaments} mob={mob} currentPlayer={player}/>}
     {view==="admin"&&player==="MJS"&&<AdminView activeYear={activeYear} mob={mob}/>}
     </div>
     <footer style={{padding:"24px 40px",textAlign:"center",fontSize:10,color:C.textLight,letterSpacing:1,marginTop:40}}>Copyright 2026 — Field Development</footer>
