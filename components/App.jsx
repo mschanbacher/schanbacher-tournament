@@ -1,12 +1,19 @@
 import { useState, useEffect, useCallback } from "react";
 import { fetchAllSeasonResults, fetchBracketForYear, fetchTournaments, submitPicks, fetchGamesForRound, fetchPicksForPlayerYear, getActiveYear } from "../lib/queries";
 
-const C = {
+const LIGHT = {
   bg:"#f5f3ef",surface:"#ffffff",border:"#c8c4bb",borderLight:"#e0ddd6",
   text:"#1a1a1a",textMid:"#5a5a5a",textLight:"#8a8a8a",
   correct:"#2a6e3f",wrong:"#c43e1c",correctBg:"#eaf5ee",wrongBg:"#f5eaea",
   TLS:"#12173F",MJS:"#F04E2C",JRS:"#1E4D42",
 };
+const DARK = {
+  bg:"#1a1a18",surface:"#242422",border:"#3a3a36",borderLight:"#2e2e2c",
+  text:"#e0ddd6",textMid:"#a0a098",textLight:"#6a6a62",
+  correct:"#2a6e3f",wrong:"#c43e1c",correctBg:"#1a3326",wrongBg:"#331a18",
+  TLS:"#6b72b3",MJS:"#f27a5e",JRS:"#5ba88e",
+};
+let C = LIGHT;
 const RN=["1st Round","2nd Round","Sweet 16","Elite 8","Final Four","Championship"];
 const RP=[1,1,2,3,4,5,6];const RMAX=[36,32,24,16,10,6];const PLAYERS_ALL=["TLS","MJS","JRS"];
 
@@ -629,6 +636,8 @@ function PlayerSelect({onSelect}){
 
 export default function App(){
   const[fontScale,setFontScale]=useState(()=>{if(typeof window!=="undefined"){return parseFloat(localStorage.getItem("schanbacher_fontScale"))||1}return 1});
+  const[dark,setDark]=useState(()=>{if(typeof window!=="undefined"){return localStorage.getItem("schanbacher_theme")==="dark"}return false});
+  const toggleTheme=()=>{const next=!dark;setDark(next);if(typeof window!=="undefined")localStorage.setItem("schanbacher_theme",next?"dark":"light")};
   const[showSettings,setShowSettings]=useState(false);
   const updateFontScale=(s)=>{setFontScale(s);if(typeof window!=="undefined")localStorage.setItem("schanbacher_fontScale",String(s));};
   const[player,setPlayer]=useState(()=>{if(typeof window!=="undefined"){return localStorage.getItem("schanbacher_player")||null}return null});const[view,setView]=useState("dashboard");
@@ -637,6 +646,7 @@ export default function App(){
     fetchAllSeasonResults().then(setSeasonResults).catch(console.error);
     fetchTournaments().then(ts=>{setTournaments(ts);const ay=getActiveYear(ts);setActiveYear(ay);}).catch(console.error);
   },[]);
+  C=dark?DARK:LIGHT;
   const mob=useIsMobile();const selectPlayer=(p)=>{setPlayer(p);if(typeof window!=="undefined")localStorage.setItem("schanbacher_player",p);};const logout=()=>{setPlayer(null);if(typeof window!=="undefined")localStorage.removeItem("schanbacher_player");};if(!player)return<PlayerSelect onSelect={selectPlayer}/>;
   const baseTabs=[{id:"dashboard",label:"Dashboard"},{id:"bracket",label:"Bracket"},{id:"picks",label:"Picks"},{id:"history",label:"History"},{id:"records",label:"Records"}];const tabs=player==="MJS"?[...baseTabs,{id:"admin",label:"Admin"}]:baseTabs;
   return(<div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Suisse Intl','Helvetica Neue',Helvetica,sans-serif",color:C.text}} onClick={()=>{if(showSettings)setShowSettings(false)}}>
@@ -646,8 +656,15 @@ export default function App(){
       <div style={{display:"flex",alignItems:"center",gap:8,position:"relative"}}><span style={{fontSize:12,fontWeight:700,color:C[player],letterSpacing:1}}>{player}</span><button onClick={()=>setShowSettings(!showSettings)} style={{background:"none",border:`1px solid ${C.border}`,color:C.textLight,padding:"3px 10px",cursor:"pointer",fontSize:10,fontFamily:"inherit",letterSpacing:1}}>Settings</button><button onClick={logout} style={{background:"none",border:`1px solid ${C.border}`,color:C.textLight,padding:"3px 10px",cursor:"pointer",fontSize:10,fontFamily:"inherit",letterSpacing:1}}>Logout</button>
       {showSettings&&<div onClick={(e)=>e.stopPropagation()} style={{position:"absolute",top:"100%",right:0,marginTop:8,background:C.surface,border:`1px solid ${C.border}`,padding:"16px",zIndex:200,width:220}}>
         <div style={{fontSize:10,letterSpacing:2,color:C.textLight,textTransform:"uppercase",fontWeight:600,marginBottom:10}}>Text Size</div>
-        <div style={{display:"flex",gap:4}}>{[{label:"S",value:0.85},{label:"M",value:1},{label:"L",value:1.15},{label:"XL",value:1.3}].map(opt=><button key={opt.label} onClick={()=>updateFontScale(opt.value)} style={{flex:1,padding:"6px 0",background:fontScale===opt.value?C.text:"transparent",color:fontScale===opt.value?"#fff":C.textMid,border:`1px solid ${fontScale===opt.value?C.text:C.border}`,fontSize:11,fontWeight:600,fontFamily:"inherit",cursor:"pointer"}}>{opt.label}</button>)}</div>
+        <div style={{display:"flex",gap:4}}>{[{label:"S",value:0.85},{label:"M",value:1},{label:"L",value:1.15},{label:"XL",value:1.3}].map(opt=><button key={opt.label} onClick={()=>updateFontScale(opt.value)} style={{flex:1,padding:"6px 0",background:fontScale===opt.value?C.text:"transparent",color:fontScale===opt.value?(dark?"#1a1a18":"#fff"):C.textMid,border:`1px solid ${fontScale===opt.value?C.text:C.border}`,fontSize:11,fontWeight:600,fontFamily:"inherit",cursor:"pointer"}}>{opt.label}</button>)}</div>
         <div style={{fontSize:10,color:C.textLight,marginTop:6}}>{fontScale===0.85?"Small":fontScale===1?"Normal":fontScale===1.15?"Large":"Extra large"}</div>
+        <div style={{marginTop:16,paddingTop:12,borderTop:"1px solid "+C.borderLight}}>
+          <div style={{fontSize:10,letterSpacing:2,color:C.textLight,textTransform:"uppercase",fontWeight:600,marginBottom:10}}>Theme</div>
+          <div style={{display:"flex",gap:4}}>
+            <button onClick={()=>{setDark(false);if(typeof window!=="undefined")localStorage.setItem("schanbacher_theme","light")}} style={{flex:1,padding:"6px 0",background:!dark?C.text:"transparent",color:!dark?(dark?"#1a1a18":"#fff"):C.textMid,border:"1px solid "+(!dark?C.text:C.border),fontSize:11,fontWeight:600,fontFamily:"inherit",cursor:"pointer"}}>Light</button>
+            <button onClick={()=>{setDark(true);if(typeof window!=="undefined")localStorage.setItem("schanbacher_theme","dark")}} style={{flex:1,padding:"6px 0",background:dark?C.text:"transparent",color:dark?(dark?"#1a1a18":"#fff"):C.textMid,border:"1px solid "+(dark?C.text:C.border),fontSize:11,fontWeight:600,fontFamily:"inherit",cursor:"pointer"}}>Dark</button>
+          </div>
+        </div>
       </div>}
     </div>
     </nav>
