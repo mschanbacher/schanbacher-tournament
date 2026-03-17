@@ -60,17 +60,19 @@ function parseESPNEvent(event) {
   const isInProgress = status?.name === 'STATUS_IN_PROGRESS'
   
   const teams = comp.competitors || []
-  // ESPN lists home team first sometimes, away first other times
-  // We'll match by team name, not position
   const team1 = teams[0]?.team?.displayName || teams[0]?.team?.shortDisplayName
   const team2 = teams[1]?.team?.displayName || teams[1]?.team?.shortDisplayName
   const score1 = parseInt(teams[0]?.score) || 0
   const score2 = parseInt(teams[1]?.score) || 0
 
+  // Capture ESPN event ID for linking to game page
+  const espnId = event.id || null
+
   return {
     team1, team2, score1, score2,
     isCompleted, isInProgress,
     statusDetail: status?.detail || '',
+    espnId,
   }
 }
 
@@ -145,9 +147,11 @@ export async function GET(request) {
         const winner = sc1 > sc2 ? game.team1 : game.team2
         
         // Update game
+        const updateData = { score1: sc1, score2: sc2, winner, status: 'final' }
+        if (match.espnId) updateData.espn_id = match.espnId
         const { error } = await supabase
           .from('games')
-          .update({ score1: sc1, score2: sc2, winner, status: 'final' })
+          .update(updateData)
           .eq('id', game.id)
         
         if (!error) {
@@ -226,9 +230,11 @@ export async function GET(request) {
         }
       } else if (match.isInProgress) {
         // Mark as live, update scores
+        const liveData = { score1: sc1, score2: sc2, status: 'live' }
+        if (match.espnId) liveData.espn_id = match.espnId
         await supabase
           .from('games')
-          .update({ score1: sc1, score2: sc2, status: 'live' })
+          .update(liveData)
           .eq('id', game.id)
       }
     }

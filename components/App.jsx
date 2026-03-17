@@ -60,14 +60,16 @@ function GameCell({game,roundIdx,currentPlayer,allPlayers}){
     </div>);
   };
   const bdr=isPending?C.borderLight:C.border;
-  return(<div style={{display:"flex",alignItems:"stretch"}}>
+  const espnUrl=game.espnId?`https://www.espn.com/mens-college-basketball/game/_/gameId/${game.espnId}`:null;
+  const Wrap=({children})=>espnUrl&&!isPending?<a href={espnUrl} target="_blank" rel="noopener noreferrer" style={{display:"flex",alignItems:"stretch",textDecoration:"none",color:"inherit",cursor:"pointer"}}>{children}</a>:<div style={{display:"flex",alignItems:"stretch"}}>{children}</div>;
+  return(<Wrap>
     <div style={{width:24,background:isSplit?"#C6982B":"transparent",flexShrink:0,border:"1px solid "+bdr,borderRight:"none"}}/>
     <div style={{width:200,border:"1px solid "+bdr,background:isPending?C.bg:C.surface,opacity:isPending?0.65:1}}>
       <TeamRow team={game.t1} score={game.sc1} seed={game.s1} isTop={true}/>
       <TeamRow team={game.t2} score={game.sc2} seed={game.s2} isTop={false}/>
     </div>
     {!isPending&&myPick?(<div style={{width:24,display:"flex",alignItems:"center",justifyContent:"center",background:gotIt?C.correct:C.wrong,color:"#fff",fontSize:10,fontWeight:700,fontVariantNumeric:"tabular-nums",border:"1px solid "+(gotIt?C.correct:C.wrong),borderLeft:"none"}}>{gotIt?"+"+pts:"0"}</div>):(<div style={{width:24,border:"1px solid "+bdr,borderLeft:"none"}}/>)}
-  </div>);
+  </Wrap>);
 }
 
 function RegionBracket({games,currentPlayer,allPlayers}){
