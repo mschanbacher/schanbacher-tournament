@@ -958,7 +958,7 @@ function HeadToHead({seasonResults,tournaments,mob,currentPlayer}){
       const roundLabels2={1:"1st Round",2:"2nd Round",3:"Sweet 16",4:"Elite 8",5:"Final Four",6:"Championship"};
       
       // Three-way consensus (only for years with all 3 players)
-      let threeAll=0,threeSplit=0,threeNone=0,threeTotal=0;
+      let threeAll=0,threeSplit=0,threeTotal=0;
       for(const yd of agreementData){
         const pA=yd.picksByPlayer[PLAYERS_ALL[0]]||{};
         const pB=yd.picksByPlayer[PLAYERS_ALL[1]]||{};
@@ -969,7 +969,7 @@ function HeadToHead({seasonResults,tournaments,mob,currentPlayer}){
             threeTotal++;
             if(a===b&&b===c)threeAll++;
             else if(a===b||a===c||b===c)threeSplit++;
-            else threeNone++;
+            
           }
         }
       }
@@ -994,12 +994,12 @@ function HeadToHead({seasonResults,tournaments,mob,currentPlayer}){
             <div style={{display:"flex",height:28,marginBottom:6}}>
               {threeAll>0&&<div style={{flex:threeAll,background:C.textLight,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:600,color:"#fff"}}>{Math.round((threeAll/threeTotal)*100)}%</div>}
               {threeSplit>0&&<div style={{flex:threeSplit,background:"#C6982B",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:600,color:"#fff"}}>{Math.round((threeSplit/threeTotal)*100)}%</div>}
-              {threeNone>0&&<div style={{flex:threeNone,background:C.text,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:600,color:C.bg}}>{Math.round((threeNone/threeTotal)*100)}%</div>}
+              
             </div>
             <div style={{display:"flex",gap:16,fontSize:10,color:C.textLight}}>
               <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,background:C.textLight}}/> All agree</div>
               <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,background:"#C6982B"}}/> 2 agree, 1 differs</div>
-              <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,background:C.text}}/> All different</div>
+              
             </div>
           </div>}
           
