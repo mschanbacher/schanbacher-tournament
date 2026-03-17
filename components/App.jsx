@@ -646,19 +646,30 @@ function PlayerSelect({onSelect}){
 }
 
 export default function App(){
-  const[fontScale,setFontScale]=useState(()=>{if(typeof window!=="undefined"){return parseFloat(localStorage.getItem("schanbacher_fontScale"))||1}return 1});
-  const[dark,setDark]=useState(()=>{if(typeof window!=="undefined"){return localStorage.getItem("schanbacher_theme")==="dark"}return false});
+  const[fontScale,setFontScale]=useState(1);
+  const[dark,setDark]=useState(false);
   const toggleTheme=()=>{const next=!dark;setDark(next);if(typeof window!=="undefined")localStorage.setItem("schanbacher_theme",next?"dark":"light")};
   const[showSettings,setShowSettings]=useState(false);
   const updateFontScale=(s)=>{setFontScale(s);if(typeof window!=="undefined")localStorage.setItem("schanbacher_fontScale",String(s));};
-  const[player,setPlayer]=useState(()=>{if(typeof window!=="undefined"){return localStorage.getItem("schanbacher_player")||null}return null});const[view,setView]=useState("dashboard");
+  const[player,setPlayer]=useState(null);const[view,setView]=useState("dashboard");
   const[seasonResults,setSeasonResults]=useState(null);const[tournaments,setTournaments]=useState(null);const[activeYear,setActiveYear]=useState(null);
+  const[mounted,setMounted]=useState(false);
+  useEffect(()=>{
+    const savedPlayer=localStorage.getItem("schanbacher_player");
+    const savedScale=localStorage.getItem("schanbacher_fontScale");
+    const savedTheme=localStorage.getItem("schanbacher_theme");
+    if(savedPlayer)setPlayer(savedPlayer);
+    if(savedScale)setFontScale(parseFloat(savedScale));
+    if(savedTheme==="dark")setDark(true);
+    setMounted(true);
+  },[]);
   useEffect(()=>{
     fetchAllSeasonResults().then(setSeasonResults).catch(console.error);
     fetchTournaments().then(ts=>{setTournaments(ts);const ay=getActiveYear(ts);setActiveYear(ay);}).catch(console.error);
   },[]);
   C=dark?DARK:LIGHT;
-  const mob=useIsMobile();const selectPlayer=(p)=>{setPlayer(p);if(typeof window!=="undefined")localStorage.setItem("schanbacher_player",p);};const logout=()=>{setPlayer(null);if(typeof window!=="undefined")localStorage.removeItem("schanbacher_player");};if(!player)return<PlayerSelect onSelect={selectPlayer}/>;
+  const mob=useIsMobile();if(!mounted)return null;
+  const selectPlayer=(p)=>{setPlayer(p);if(typeof window!=="undefined")localStorage.setItem("schanbacher_player",p);};const logout=()=>{setPlayer(null);if(typeof window!=="undefined")localStorage.removeItem("schanbacher_player");};if(!player)return<PlayerSelect onSelect={selectPlayer}/>;
   const baseTabs=[{id:"dashboard",label:"Dashboard"},{id:"bracket",label:"Bracket"},{id:"picks",label:"Picks"},{id:"history",label:"History"},{id:"records",label:"Records"}];const tabs=player==="MJS"?[...baseTabs,{id:"admin",label:"Admin"}]:baseTabs;
   return(<div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Suisse Intl','Helvetica Neue',Helvetica,sans-serif",color:C.text}} onClick={()=>{if(showSettings)setShowSettings(false)}}>
     <nav style={{display:"flex",flexWrap:mob?"wrap":"nowrap",alignItems:"center",justifyContent:"space-between",padding:mob?"8px 16px":"0 40px",height:mob?"auto":48,background:C.surface,borderBottom:`1px solid ${C.border}`,position:"sticky",top:0,zIndex:100,gap:mob?4:0}}>
