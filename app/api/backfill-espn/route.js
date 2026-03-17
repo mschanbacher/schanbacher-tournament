@@ -206,9 +206,18 @@ export async function GET(request) {
       }
     }
 
+    const missedGames = ourGames.filter(g => g.team1 && g.team2 && !g.espn_id).map(g => {
+      // Re-check if still unmatched after this run
+      const stillMissed = !allEspnGames.find(eg => 
+        (namesMatch(eg.team1, g.team1) && namesMatch(eg.team2, g.team2)) ||
+        (namesMatch(eg.team1, g.team2) && namesMatch(eg.team2, g.team1))
+      )
+      return stillMissed ? `R${g.round}: ${g.team1} vs ${g.team2}` : null
+    }).filter(Boolean)
+    
     totalMatched += matched
     totalMissed += missed
-    results[year] = { gamesInDB: ourGames.length, espnGamesFound: allEspnGames.length + matched, matched, missed }
+    results[year] = { gamesInDB: ourGames.length, espnGamesFound: allEspnGames.length + matched, matched, missed, missedGames }
   }
 
   return Response.json({
