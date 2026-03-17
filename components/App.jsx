@@ -64,7 +64,7 @@ function GameCell({game,roundIdx,currentPlayer,allPlayers}){
   const espnUrl=game.espnId?`https://www.espn.com/mens-college-basketball/game/_/gameId/${game.espnId}`:null;
   const Wrap=({children})=>espnUrl&&!isPending?<a href={espnUrl} target="_blank" rel="noopener noreferrer" style={{display:"flex",alignItems:"stretch",textDecoration:"none",color:"inherit",cursor:"pointer"}}>{children}</a>:<div style={{display:"flex",alignItems:"stretch"}}>{children}</div>;
   return(<Wrap>
-    <div style={{width:24,background:isLive?"#c43e1c":isSplit?"#C6982B":"transparent",flexShrink:0,border:"1px solid "+(isLive?"#c43e1c":bdr),borderRight:"none",display:"flex",alignItems:"center",justifyContent:"center"}}>{isLive&&<div style={{width:6,height:6,background:"#fff",animation:"pulse 1.5s ease-in-out infinite"}}/>}{null}</div>
+    <div style={{width:24,background:isSplit?"#C6982B":"transparent",flexShrink:0,border:"1px solid "+bdr,borderRight:"none",display:"flex",alignItems:"center",justifyContent:"center"}}>{isLive&&<div style={{width:6,height:6,background:isSplit?"#fff":"#c43e1c",animation:"pulse 1.5s ease-in-out infinite"}}/>}</div>
     <div style={{width:200,border:"1px solid "+(isLive?"#c43e1c":bdr),background:isPending?C.bg:C.surface,opacity:isPending?0.65:1}}>
       <TeamRow team={game.t1} score={game.sc1} seed={game.s1} isTop={true}/>
       <TeamRow team={game.t2} score={game.sc2} seed={game.s2} isTop={false}/>
