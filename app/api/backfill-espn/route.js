@@ -175,12 +175,18 @@ export async function GET(request) {
     let matched = 0
     let missed = 0
 
+    // First pass: remove ESPN games that match already-backfilled DB games
+    for (const game of ourGames) {
+      if (!game.team1 || !game.team2 || !game.espn_id) continue
+      const idx = allEspnGames.findIndex(eg => eg.espnId === game.espn_id)
+      if (idx > -1) allEspnGames.splice(idx, 1)
+    }
+
+    // Second pass: match remaining DB games to remaining ESPN games
     for (const game of ourGames) {
       if (!game.team1 || !game.team2) continue
-      // Skip if already has ESPN ID
       if (game.espn_id) { matched++; continue }
 
-      // Find matching ESPN game
       const match = allEspnGames.find(eg => {
         return eg.completed && (
           (namesMatch(eg.team1, game.team1) && namesMatch(eg.team2, game.team2)) ||
@@ -198,7 +204,6 @@ export async function GET(request) {
           .eq('id', game.id)
         
         matched++
-        // Remove from pool so we don't double-match
         const idx = allEspnGames.indexOf(match)
         if (idx > -1) allEspnGames.splice(idx, 1)
       } else {
@@ -206,7 +211,9 @@ export async function GET(request) {
       }
     }
 
-    const missedGames = ourGames.filter(g => g.team1 && g.team2 && !g.espn_id).map(g => {
+    // Re-fetch to check current state
+    const { data: refreshedGames } = await supabase.from('games').select('*').eq('year', year)
+    const missedGames = (refreshedGames||[]).filter(g => g.team1 && g.team2 && !g.espn_id).map(g => {
       // Re-check if still unmatched after this run
       const stillMissed = !allEspnGames.find(eg => 
         (namesMatch(eg.team1, g.team1) && namesMatch(eg.team2, g.team2)) ||
@@ -217,7 +224,8 @@ export async function GET(request) {
     
     totalMatched += matched
     totalMissed += missed
-    results[year] = { gamesInDB: ourGames.length, espnGamesFound: allEspnGames.length + matched, matched, missed, missedGames }
+    const remainingEspn = allEspnGames.slice(0, 20).map(eg => `${eg.team1} vs ${eg.team2}`)
+    results[year] = { gamesInDB: ourGames.length, espnGamesFound: allEspnGames.length + matched, matched, missed, missedGames, remainingEspn }
   }
 
   return Response.json({
