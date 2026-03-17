@@ -71,22 +71,50 @@ function normalize(name) {
     .toLowerCase()
 }
 
+function stripMascot(name) {
+  // Common mascot words to strip
+  const mascots = ['owls','islanders','redhawks','crimson','tide','cougars','norse','bears','gauchos','tigers','knights','volunteers','wildcats','aztecs','bulldogs','wolverines','spartans','hoosiers','jayhawks','longhorns','aggies','hurricanes','cavaliers','hokies','mountaineers','sooners','cowboys','raiders','bearcats','huskies','ducks','beavers','bruins','trojans','cardinals','blue','devils','tar','heels','demon','deacons','fighting','irish','orange','seminoles','yellow','jackets','panthers','terrapins','golden','gophers','hawkeyes','cornhuskers','badgers','boilermakers','illini','buckeyes','nittany','lions','scarlet','hoyas','friars','musketeers','pirates','red','storm','eagles','rams','colonels','49ers','dukes','flyers','flames','gaels','zags','saints','billikens','braves','catamounts','chanticleers','hatters','paladins','phoenix','racers','shockers','lumberjacks','antelopes','peacocks','bison']
+  const words = name.split(' ')
+  if (words.length <= 1) return name
+  // Try removing last 1-2 words if they look like mascots
+  const last = words[words.length - 1]
+  if (mascots.includes(last)) {
+    const trimmed = words.slice(0, -1).join(' ')
+    // Check if second-to-last is also a mascot modifier
+    const newWords = trimmed.split(' ')
+    const newLast = newWords[newWords.length - 1]
+    if (newWords.length > 1 && mascots.includes(newLast)) return newWords.slice(0, -1).join(' ')
+    return trimmed
+  }
+  return name
+}
+
 function namesMatch(a, b) {
   if (!a || !b) return false
   const na = normalize(a)
   const nb = normalize(b)
   if (na === nb) return true
   if (na.includes(nb) || nb.includes(na)) return true
-  // Check aliases
-  const aliasA = ALIASES[na] || []
-  const aliasB = ALIASES[nb] || []
-  if (aliasA.includes(nb) || aliasB.includes(na)) return true
-  // Check if any alias of A matches any alias of B
-  for (const aa of aliasA) { if (aliasB.includes(aa)) return true; if (aa === nb) return true; }
-  for (const bb of aliasB) { if (aliasA.includes(bb)) return true; if (bb === na) return true; }
-  // Last word match
-  const lastA = na.split(' ').pop()
-  const lastB = nb.split(' ').pop()
+  // Try with mascots stripped
+  const sa = stripMascot(na)
+  const sb = stripMascot(nb)
+  if (sa === sb) return true
+  if (sa.includes(sb) || sb.includes(sa)) return true
+  // Check aliases against both original and stripped names
+  const candidates = [na, sa]
+  const targets = [nb, sb]
+  for (const c of candidates) {
+    for (const t of targets) {
+      const aliasC = ALIASES[c] || []
+      const aliasT = ALIASES[t] || []
+      if (aliasC.includes(t) || aliasT.includes(c)) return true
+      for (const ac of aliasC) { if (ac === t || aliasT.includes(ac)) return true }
+      for (const at of aliasT) { if (at === c || aliasC.includes(at)) return true }
+    }
+  }
+  // Last word match (after stripping mascot)
+  const lastA = sa.split(' ').pop()
+  const lastB = sb.split(' ').pop()
   if (lastA.length > 4 && lastA === lastB) return true
   return false
 }
@@ -109,7 +137,7 @@ const TOURNAMENT_DATES = {
   2019: ['20190319','20190321','20190322','20190323','20190324','20190328','20190329','20190330','20190331','20190406','20190408'],
   2021: ['20210318','20210319','20210320','20210321','20210322','20210327','20210328','20210329','20210330','20210403','20210405'],
   2022: ['20220315','20220317','20220318','20220319','20220320','20220324','20220325','20220326','20220327','20220402','20220404'],
-  2023: ['20230314','20230316','20230317','20230318','20230319','20230323','20230324','20230325','20230326','20230401','20230403'],
+  2023: ['20230314','20230315','20230316','20230317','20230318','20230319','20230323','20230324','20230325','20230326','20230401','20230403'],
   2024: ['20240319','20240321','20240322','20240323','20240324','20240328','20240329','20240330','20240331','20240406','20240408'],
   2025: ['20250318','20250319','20250320','20250321','20250322','20250323','20250327','20250328','20250329','20250330','20250405','20250407'],
 }
