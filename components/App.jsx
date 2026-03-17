@@ -463,6 +463,7 @@ function UpsetsTab({tournaments,mob}){
       const completedYears=(tournaments||[]).filter(t=>t.status==="complete").map(t=>t.year).sort((a,b)=>b-a);
       const allUpsets=[];
       const yearStats=[];
+      const agreementRaw=[];
       
       for(const year of completedYears){
         const{data:games}=await supabase.from("games").select("*").eq("year",year).eq("status","final");
@@ -476,6 +477,9 @@ function UpsetsTab({tournaments,mob}){
         const pickMap={};
         for(const p of picks){if(!pickMap[p.game_id])pickMap[p.game_id]={};pickMap[p.game_id][p.player_id]=p.picked_team;}
         
+        const playerHasPicks={};
+        for(const gid of Object.keys(pickMap)){for(const pid of Object.keys(pickMap[gid])){playerHasPicks[pid]=true;}}
+        agreementRaw.push({year,picksByPlayer:playerHasPicks});
         let yearUpsetCount=0;
         const yearCalledBy={};
         PLAYERS_ALL.forEach(p=>yearCalledBy[p]=0);
@@ -525,12 +529,14 @@ function UpsetsTab({tournaments,mob}){
       const playerRates={};
       const playerBestYear={};
       for(const player of PLAYERS_ALL){
-        const called=allUpsets.filter(u=>u.calledBy.includes(player)).length;
-        const possible=allUpsets.filter(u=>{
-          // Only count upsets where this player had picks that year
-          const ys=yearStats.find(y=>y.year===u.year);
-          return ys&&ys.calledBy[player]!==undefined;
-        }).length;
+        // Only count upsets from years where this player actually submitted picks
+        const playerYears=yearStats.filter(ys=>{
+          const yd=agreementRaw.find(d=>d.year===ys.year);
+          return yd&&yd.picksByPlayer[player];
+        }).map(ys=>ys.year);
+        const playerUpsets=allUpsets.filter(u=>playerYears.includes(u.year));
+        const called=playerUpsets.filter(u=>u.calledBy.includes(player)).length;
+        const possible=playerUpsets.length;
         playerRates[player]={called,possible,pct:possible>0?Math.round((called/possible)*100):0};
         
         // Best year
