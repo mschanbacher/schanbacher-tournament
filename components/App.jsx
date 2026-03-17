@@ -743,6 +743,28 @@ function HeadToHead({seasonResults,tournaments,mob,currentPlayer}){
   const others=PLAYERS_ALL.filter(p=>p!==currentPlayer);
   const [p2,setP2]=useState(others[0]||"MJS");
   const p1=currentPlayer;
+  const [agreementData,setAgreementData]=useState(null);
+  useEffect(()=>{
+    (async()=>{
+      const{supabase}=await import("../lib/supabase");
+      const completedYears=(tournaments||[]).filter(t=>t.status==="complete").map(t=>t.year);
+      const allData=[];
+      for(const year of completedYears){
+        const{data:games}=await supabase.from("games").select("id,round,year").eq("year",year);
+        if(!games?.length)continue;
+        const gameIds=games.map(g=>g.id);
+        let picks=[];
+        for(let i=0;i<gameIds.length;i+=200){
+          const{data:batch}=await supabase.from("picks").select("*").in("game_id",gameIds.slice(i,i+200));
+          picks=picks.concat(batch||[]);
+        }
+        const picksByPlayer={};
+        for(const p of picks){if(!picksByPlayer[p.player_id])picksByPlayer[p.player_id]={};picksByPlayer[p.player_id][p.game_id]=p.picked_team;}
+        allData.push({year,games,picksByPlayer});
+      }
+      setAgreementData(allData);
+    })();
+  },[tournaments]);
   if(!seasonResults?.length)return <Loading/>;
   
   const completedResults=seasonResults.filter(r=>tournaments?.find(t=>t.year===r.year&&t.status==="complete"));
@@ -907,6 +929,107 @@ function HeadToHead({seasonResults,tournaments,mob,currentPlayer}){
       <div style={{padding:"6px 0"}}><span style={{fontSize:12,color:C.textMid,width:140,display:"inline-block"}}>{p2} longest streak</span><span style={{fontSize:13,fontWeight:500,color:C[p2],fontVariantNumeric:"tabular-nums"}}>{streak2.longest} {streak2.longestRange?"("+streak2.longestRange+")":""}</span></div>
       {currentStreakPlayer&&<div style={{padding:"6px 0"}}><span style={{fontSize:12,color:C.textMid,width:140,display:"inline-block"}}>Current streak</span><span style={{fontSize:13,fontWeight:500,color:C[currentStreakPlayer],fontVariantNumeric:"tabular-nums"}}>{currentStreakPlayer} — {currentStreakCount} win{currentStreakCount>1?"s":""}</span></div>}
     </div>
+    
+    {/* Pick Agreement */}
+    {agreementData&&(()=>{
+      // Compute agreement between p1 and p2
+      let totalGames=0,totalAgree=0;
+      const roundAgree={1:{games:0,agree:0},2:{games:0,agree:0},3:{games:0,agree:0},4:{games:0,agree:0},5:{games:0,agree:0},6:{games:0,agree:0}};
+      const yearAgree=[];
+      
+      for(const yd of agreementData){
+        const pp1=yd.picksByPlayer[p1]||{};
+        const pp2=yd.picksByPlayer[p2]||{};
+        let yGames=0,yAgree=0;
+        for(const g of yd.games){
+          const pick1=pp1[g.id];
+          const pick2=pp2[g.id];
+          if(pick1&&pick2){
+            totalGames++;yGames++;
+            if(roundAgree[g.round])roundAgree[g.round].games++;
+            if(pick1===pick2){totalAgree++;yAgree++;if(roundAgree[g.round])roundAgree[g.round].agree++;}
+          }
+        }
+        if(yGames>0)yearAgree.push({year:yd.year,games:yGames,agree:yAgree,pct:Math.round((yAgree/yGames)*100)});
+      }
+      yearAgree.sort((a,b)=>b.year-a.year);
+      
+      const overallPct=totalGames>0?Math.round((totalAgree/totalGames)*100):0;
+      const roundLabels2={1:"1st Round",2:"2nd Round",3:"Sweet 16",4:"Elite 8",5:"Final Four",6:"Championship"};
+      
+      // Three-way consensus (only for years with all 3 players)
+      let threeAll=0,threeSplit=0,threeNone=0,threeTotal=0;
+      for(const yd of agreementData){
+        const pA=yd.picksByPlayer[PLAYERS_ALL[0]]||{};
+        const pB=yd.picksByPlayer[PLAYERS_ALL[1]]||{};
+        const pC=yd.picksByPlayer[PLAYERS_ALL[2]]||{};
+        for(const g of yd.games){
+          const a=pA[g.id],b=pB[g.id],c=pC[g.id];
+          if(a&&b&&c){
+            threeTotal++;
+            if(a===b&&b===c)threeAll++;
+            else if(a===b||a===c||b===c)threeSplit++;
+            else threeNone++;
+          }
+        }
+      }
+      
+      return(<>
+        <div style={{marginBottom:32,paddingBottom:24,borderBottom:"1px solid "+C.borderLight}}>
+          <Lbl>Pick agreement</Lbl>
+          
+          {/* Overall rate */}
+          <div style={{background:C.surface,border:"1px solid "+C.borderLight,padding:"16px 20px",marginBottom:16}}>
+            <div style={{fontSize:12,color:C.textMid,marginBottom:6}}><span style={{fontWeight:600,color:C[p1]}}>{p1}</span> + <span style={{fontWeight:600,color:C[p2]}}>{p2}</span> pick the same team</div>
+            <div style={{display:"flex",alignItems:"baseline",gap:8}}>
+              <span style={{fontSize:28,fontWeight:700,color:C.text,fontVariantNumeric:"tabular-nums"}}>{overallPct}%</span>
+              <span style={{fontSize:12,color:C.textLight,fontVariantNumeric:"tabular-nums"}}>{totalAgree} of {totalGames} picks</span>
+            </div>
+            <div style={{height:4,background:C.borderLight,marginTop:10}}><div style={{height:"100%",width:overallPct+"%",background:C.text,opacity:0.4}}/></div>
+          </div>
+          
+          {/* Three-way consensus */}
+          {threeTotal>0&&<div style={{marginBottom:16}}>
+            <div style={{fontSize:12,color:C.textMid,fontWeight:600,marginBottom:8}}>Three-way consensus ({threeTotal} games)</div>
+            <div style={{display:"flex",height:28,marginBottom:6}}>
+              {threeAll>0&&<div style={{flex:threeAll,background:C.textLight,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:600,color:"#fff"}}>{Math.round((threeAll/threeTotal)*100)}%</div>}
+              {threeSplit>0&&<div style={{flex:threeSplit,background:"#C6982B",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:600,color:"#fff"}}>{Math.round((threeSplit/threeTotal)*100)}%</div>}
+              {threeNone>0&&<div style={{flex:threeNone,background:C.text,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:600,color:C.bg}}>{Math.round((threeNone/threeTotal)*100)}%</div>}
+            </div>
+            <div style={{display:"flex",gap:16,fontSize:10,color:C.textLight}}>
+              <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,background:C.textLight}}/> All agree</div>
+              <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,background:"#C6982B"}}/> 2 agree, 1 differs</div>
+              <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:10,height:10,background:C.text}}/> All different</div>
+            </div>
+          </div>}
+          
+          {/* By round */}
+          <div style={{fontSize:12,color:C.textMid,fontWeight:600,marginBottom:8}}>Agreement by round</div>
+          <div style={{overflowX:"auto",marginBottom:16}}><table style={{width:"100%",borderCollapse:"collapse",minWidth:360}}>
+            <thead><tr style={{borderBottom:"2px solid "+C.text}}>
+              <th style={{textAlign:"left",padding:"6px 0",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>ROUND</th>
+              <th style={{textAlign:"right",padding:"6px 8px",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>GAMES</th>
+              <th style={{textAlign:"right",padding:"6px 8px",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>AGREE</th>
+              <th style={{textAlign:"right",padding:"6px 0",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>RATE</th>
+            </tr></thead>
+            <tbody>{[1,2,3,4,5,6].map(r=>{const rd=roundAgree[r];if(!rd||!rd.games)return null;const pct=Math.round((rd.agree/rd.games)*100);return(<tr key={r} style={{borderBottom:"1px solid "+C.borderLight}}>
+              <td style={{padding:"8px 0",fontSize:13,color:C.textMid,fontWeight:600}}>{roundLabels2[r]}</td>
+              <td style={{textAlign:"right",padding:"8px 8px",fontSize:13,fontVariantNumeric:"tabular-nums"}}>{rd.games}</td>
+              <td style={{textAlign:"right",padding:"8px 8px",fontSize:13,fontVariantNumeric:"tabular-nums"}}>{rd.agree}</td>
+              <td style={{textAlign:"right",padding:"8px 0",fontSize:13,fontWeight:600,fontVariantNumeric:"tabular-nums",color:C.text}}>{pct}%</td>
+            </tr>);})}</tbody>
+          </table></div>
+          
+          {/* Year trend */}
+          <div style={{fontSize:12,color:C.textMid,fontWeight:600,marginBottom:8}}>Year by year agreement</div>
+          {yearAgree.map(ya=>(<div key={ya.year} style={{display:"flex",alignItems:"center",padding:"6px 0",borderBottom:"1px solid "+C.borderLight}}>
+            <span style={{width:50,fontSize:13,fontWeight:600,fontVariantNumeric:"tabular-nums",color:C.text}}>{ya.year}</span>
+            <div style={{flex:1,height:16,background:C.borderLight,margin:"0 12px"}}><div style={{height:"100%",width:ya.pct+"%",background:C.text,opacity:0.35}}/></div>
+            <span style={{width:50,textAlign:"right",fontSize:12,fontVariantNumeric:"tabular-nums",color:C.textMid}}>{ya.pct}%</span>
+          </div>))}
+        </div>
+      </>);
+    })()}
   </div>);
 }
 
