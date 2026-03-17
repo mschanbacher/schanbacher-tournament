@@ -639,7 +639,7 @@ export default function App(){
   },[]);
   const mob=useIsMobile();const selectPlayer=(p)=>{setPlayer(p);if(typeof window!=="undefined")localStorage.setItem("schanbacher_player",p);};const logout=()=>{setPlayer(null);if(typeof window!=="undefined")localStorage.removeItem("schanbacher_player");};if(!player)return<PlayerSelect onSelect={selectPlayer}/>;
   const baseTabs=[{id:"dashboard",label:"Dashboard"},{id:"bracket",label:"Bracket"},{id:"picks",label:"Picks"},{id:"history",label:"History"},{id:"records",label:"Records"}];const tabs=player==="MJS"?[...baseTabs,{id:"admin",label:"Admin"}]:baseTabs;
-  return(<div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Suisse Intl','Helvetica Neue',Helvetica,sans-serif",color:C.text,fontSize:14*fontScale}} onClick={()=>{if(showSettings)setShowSettings(false)}}>
+  return(<div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Suisse Intl','Helvetica Neue',Helvetica,sans-serif",color:C.text}} onClick={()=>{if(showSettings)setShowSettings(false)}}>
     <nav style={{display:"flex",flexWrap:mob?"wrap":"nowrap",alignItems:"center",justifyContent:"space-between",padding:mob?"8px 16px":"0 40px",height:mob?"auto":48,background:C.surface,borderBottom:`1px solid ${C.border}`,position:"sticky",top:0,zIndex:100,gap:mob?4:0}}>
       <div style={{display:"flex",alignItems:"baseline",gap:8}}><span style={{fontSize:13,fontWeight:700,color:C.text,letterSpacing:0.5}}>Schanbacher</span><span style={{fontSize:9,color:C.textLight,letterSpacing:2,textTransform:"uppercase"}}>Tournament</span></div>
       <div style={{display:"flex",gap:0,width:mob?"100%":"auto",overflowX:mob?"auto":"visible",overflowY:"hidden",WebkitOverflowScrolling:"touch",order:mob?3:0}}>{tabs.map(t=><button key={t.id} onClick={()=>setView(t.id)} style={{background:"none",border:"none",borderBottom:view===t.id?`2px solid ${C.text}`:"2px solid transparent",color:view===t.id?C.text:C.textLight,padding:mob?"8px 10px":"14px 14px 12px",cursor:"pointer",fontSize:mob?10:11,fontWeight:600,letterSpacing:1,textTransform:"uppercase",fontFamily:"inherit",whiteSpace:"nowrap"}}>{t.label}</button>)}</div>
@@ -651,12 +651,14 @@ export default function App(){
       </div>}
     </div>
     </nav>
+    <div style={{zoom:fontScale}}>
     {view==="dashboard"&&<Dashboard seasonResults={seasonResults} tournaments={tournaments} mob={mob}/>}
     {view==="bracket"&&<BracketView currentPlayer={player} activeYear={activeYear} mob={mob}/>}
     {view==="picks"&&<PicksView currentPlayer={player} activeYear={activeYear} tournaments={tournaments} mob={mob}/>}
     {view==="history"&&<HallOfFame seasonResults={seasonResults} tournaments={tournaments} currentPlayer={player} mob={mob}/>}
     {view==="records"&&<RecordsView seasonResults={seasonResults} tournaments={tournaments} mob={mob}/>}
     {view==="admin"&&player==="MJS"&&<AdminView activeYear={activeYear} mob={mob}/>}
+    </div>
     <footer style={{padding:"24px 40px",textAlign:"center",fontSize:10,color:C.textLight,letterSpacing:1,marginTop:40}}>Copyright 2026 — Field Development</footer>
   </div>);
 }
