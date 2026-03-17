@@ -494,6 +494,181 @@ function RecordsView({seasonResults,tournaments,mob}){
 }
 
 
+function HeadToHead({seasonResults,tournaments,mob}){
+  const [p1,setP1]=useState("TLS");
+  const [p2,setP2]=useState("MJS");
+  if(!seasonResults?.length)return <Loading/>;
+  
+  const completedResults=seasonResults.filter(r=>tournaments?.find(t=>t.year===r.year&&t.status==="complete"));
+  const years=[...new Set(completedResults.map(r=>r.year))].sort((a,b)=>b-a);
+  
+  // Get years where both players participated
+  const h2hYears=years.filter(y=>{
+    const a=completedResults.find(r=>r.year===y&&r.player_id===p1);
+    const b=completedResults.find(r=>r.year===y&&r.player_id===p2);
+    return a&&b;
+  });
+  
+  // Year by year results
+  const yearData=h2hYears.map(y=>{
+    const a=completedResults.find(r=>r.year===y&&r.player_id===p1);
+    const b=completedResults.find(r=>r.year===y&&r.player_id===p2);
+    const margin=a.total_score-b.total_score;
+    return {year:y,s1:a.total_score,s2:b.total_score,margin,winner:margin>0?p1:margin<0?p2:"tie",a,b};
+  });
+  
+  const p1Wins=yearData.filter(d=>d.winner===p1).length;
+  const p2Wins=yearData.filter(d=>d.winner===p2).length;
+  const ties=yearData.filter(d=>d.winner==="tie").length;
+  
+  // Stats
+  const p1Scores=yearData.map(d=>d.s1);
+  const p2Scores=yearData.map(d=>d.s2);
+  const p1Avg=p1Scores.length?(p1Scores.reduce((a,b)=>a+b,0)/p1Scores.length).toFixed(1):0;
+  const p2Avg=p2Scores.length?(p2Scores.reduce((a,b)=>a+b,0)/p2Scores.length).toFixed(1):0;
+  const p1High=p1Scores.length?Math.max(...p1Scores):0;
+  const p2High=p2Scores.length?Math.max(...p2Scores):0;
+  const p1Low=p1Scores.length?Math.min(...p1Scores):0;
+  const p2Low=p2Scores.length?Math.min(...p2Scores):0;
+  const p1MaxMargin=yearData.filter(d=>d.winner===p1).length?Math.max(...yearData.filter(d=>d.winner===p1).map(d=>d.margin)):0;
+  const p2MaxMargin=yearData.filter(d=>d.winner===p2).length?Math.max(...yearData.filter(d=>d.winner===p2).map(d=>Math.abs(d.margin))):0;
+  const margins=yearData.map(d=>Math.abs(d.margin)).filter(m=>m>0);
+  const closestMargin=margins.length?Math.min(...margins):0;
+  const closestYears=yearData.filter(d=>Math.abs(d.margin)===closestMargin);
+  
+  // Round dominance
+  const roundFields=["r1_score","r2_score","r3_score","r4_score","r5_score","r6_score"];
+  const roundLabels=["R1","R2","S16","E8","FF","CH"];
+  const roundDom=roundFields.map((field,ri)=>{
+    let w1=0,w2=0,t=0;
+    h2hYears.forEach(y=>{
+      const a=completedResults.find(r=>r.year===y&&r.player_id===p1);
+      const b=completedResults.find(r=>r.year===y&&r.player_id===p2);
+      if(a&&b&&a[field]!=null&&b[field]!=null){
+        if(a[field]>b[field])w1++;else if(b[field]>a[field])w2++;else t++;
+      }
+    });
+    return {label:roundLabels[ri],w1,w2,t};
+  });
+  
+  // Streaks
+  const computeStreaks=(player)=>{
+    const sorted=[...yearData].sort((a,b)=>a.year-b.year);
+    let max=0,cur=0,curStart=0,maxStart=0,maxEnd=0;
+    for(const d of sorted){
+      if(d.winner===player){cur++;if(cur===1)curStart=d.year;if(cur>max){max=cur;maxStart=curStart;maxEnd=d.year;}}
+      else{cur=0;}
+    }
+    // Current streak
+    const recent=[...yearData].sort((a,b)=>b.year-a.year);
+    let currentStreak=0;
+    for(const d of recent){if(d.winner===player)currentStreak++;else break;}
+    return {longest:max,longestRange:max>0?`${maxStart}–${maxEnd}`:"",current:currentStreak};
+  };
+  const streak1=computeStreaks(p1);
+  const streak2=computeStreaks(p2);
+  const currentStreakPlayer=streak1.current>0?p1:streak2.current>0?p2:null;
+  const currentStreakCount=streak1.current>0?streak1.current:streak2.current;
+  
+  const maxMarginAll=yearData.length?Math.max(...yearData.map(d=>Math.abs(d.margin)),1):1;
+  
+  const sv={fontSize:14,fontWeight:500,fontVariantNumeric:"tabular-nums",minWidth:50,textAlign:"right"};
+  const otherPlayer=PLAYERS_ALL.filter(p=>p!==p1&&p!==p2)[0];
+
+  return(<div style={{padding:mob?"20px 16px":"32px 40px",maxWidth:700,margin:"0 auto"}}>
+    <div style={{marginBottom:4}}><Lbl>Head to head</Lbl></div>
+    <h2 style={{fontSize:28,fontWeight:700,color:C.text,margin:"0 0 4px",lineHeight:1}}>{p1} vs {p2}</h2>
+    <div style={{fontSize:12,color:C.textMid,marginBottom:20}}>{h2hYears.length} seasons ({h2hYears.length>0?`${h2hYears[h2hYears.length-1]}–${h2hYears[0]}`:""})</div>
+    
+    <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:28}}>
+      {PLAYERS_ALL.map(p=>{const isSelected=p===p1||p===p2;return(<button key={p} onClick={()=>{if(p===p1)return;if(p===p2)return;if(isSelected)return;setP2(p);}} style={{padding:"8px 20px",fontSize:14,fontWeight:600,letterSpacing:1,border:"1px solid "+(isSelected?C[p]:C.border),background:isSelected?C.surface:"transparent",color:isSelected?C[p]:C.textLight,cursor:"pointer",fontFamily:"inherit"}} onMouseDown={(e)=>{
+        e.preventDefault();
+        if(p===p1){/* already p1, do nothing */}
+        else if(p===p2){/* already p2, do nothing */}
+        else{/* swap: new player replaces p2 */setP2(p);}
+      }}>{p}</button>);})}
+      <span style={{fontSize:11,color:C.textLight,marginLeft:8}}>Click to swap opponent</span>
+    </div>
+    
+    {/* Win/Loss Bar */}
+    <div style={{marginBottom:28}}>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+        <span style={{fontSize:11,color:C[p1],fontWeight:600,letterSpacing:1}}>{p1} wins: {p1Wins}</span>
+        {ties>0&&<span style={{fontSize:11,color:C.textLight}}>Ties: {ties}</span>}
+        <span style={{fontSize:11,color:C[p2],fontWeight:600,letterSpacing:1}}>{p2} wins: {p2Wins}</span>
+      </div>
+      <div style={{display:"flex",height:32}}>
+        {p1Wins>0&&<div style={{flex:p1Wins,background:C[p1],display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:13,fontWeight:600}}>{p1Wins}</div>}
+        {ties>0&&<div style={{flex:ties,background:C.textLight,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:13,fontWeight:600}}>{ties}</div>}
+        {p2Wins>0&&<div style={{flex:p2Wins,background:C[p2],display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:13,fontWeight:600}}>{p2Wins}</div>}
+      </div>
+    </div>
+    
+    {/* Overall Stats */}
+    <div style={{marginBottom:32}}>
+      <Lbl>Overall stats</Lbl>
+      {[["Average score",p1Avg,p2Avg],["Highest score",p1High,p2High],["Lowest score",p1Low,p2Low],["Largest win margin",p1MaxMargin,p2MaxMargin]].map(([label,v1,v2])=>(<div key={label} style={{display:"flex",alignItems:"baseline",padding:"10px 0",borderBottom:"1px solid "+C.borderLight}}>
+        <span style={{flex:1,fontSize:12,color:C.textMid,fontWeight:600}}>{label}</span>
+        <span style={{...sv,color:C[p1]}}>{v1}</span>
+        <span style={{fontSize:11,color:C.textLight,minWidth:40,textAlign:"center"}}>—</span>
+        <span style={{...sv,color:C[p2],textAlign:"left"}}>{v2}</span>
+      </div>))}
+      {closestMargin>0&&<div style={{display:"flex",alignItems:"baseline",padding:"10px 0",borderBottom:"1px solid "+C.borderLight}}>
+        <span style={{flex:1,fontSize:12,color:C.textMid,fontWeight:600}}>Closest finish</span>
+        <span style={{fontSize:13,fontWeight:500,color:C.text,fontVariantNumeric:"tabular-nums"}}>{closestMargin} pt{closestMargin>1?"s":""} ({closestYears.map(d=>`${d.year}: ${d.s1}–${d.s2}`).join(", ")})</span>
+      </div>}
+    </div>
+    
+    {/* Round Dominance */}
+    <div style={{marginBottom:32}}>
+      <Lbl>Round dominance</Lbl>
+      <div style={{fontSize:11,color:C.textMid,marginBottom:12}}>Who wins each round more often</div>
+      <div style={{display:"flex",gap:4}}>
+        {roundDom.map(rd=>{const max=Math.max(rd.w1,rd.w2,1);return(<div key={rd.label} style={{flex:1,textAlign:"center"}}>
+          <div style={{fontSize:10,color:C.textLight,marginBottom:6,letterSpacing:1}}>{rd.label}</div>
+          <div style={{height:80,display:"flex",flexDirection:"column",justifyContent:"flex-end",alignItems:"center",gap:1}}>
+            <div style={{width:24,height:Math.max(2,(rd.w1/max)*60),background:C[p1],opacity:0.5}}/>
+            <div style={{width:24,height:Math.max(2,(rd.w2/max)*60),background:C[p2],opacity:0.5}}/>
+          </div>
+          <div style={{fontSize:10,color:C[p1],fontWeight:500,fontVariantNumeric:"tabular-nums",marginTop:4}}>{rd.w1}</div>
+          <div style={{fontSize:10,color:C[p2],fontWeight:500,fontVariantNumeric:"tabular-nums"}}>{rd.w2}</div>
+        </div>);})}
+      </div>
+    </div>
+    
+    {/* Year by Year */}
+    <div style={{marginBottom:32}}>
+      <Lbl>Year by year</Lbl>
+      <div style={{display:"flex",alignItems:"center",padding:"6px 0",borderBottom:"2px solid "+C.text,fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>
+        <span style={{width:50}}>YEAR</span>
+        <span style={{width:50,textAlign:"right",color:C[p1]}}>{p1}</span>
+        <span style={{flex:1}}/>
+        <span style={{width:50,color:C[p2]}}>{p2}</span>
+        <span style={{width:60,textAlign:"center"}}>MARGIN</span>
+      </div>
+      {yearData.map(d=>(<div key={d.year} style={{display:"flex",alignItems:"center",padding:"8px 0",borderBottom:"1px solid "+C.borderLight,fontSize:13}}>
+        <span style={{width:50,fontWeight:600,fontVariantNumeric:"tabular-nums",color:C.text}}>{d.year}</span>
+        <span style={{width:50,textAlign:"right",fontWeight:d.winner===p1?700:400,fontVariantNumeric:"tabular-nums",color:C[p1]}}>{d.s1}</span>
+        <div style={{flex:1,height:14,margin:"0 12px",position:"relative"}}>
+          {d.margin>0&&<div style={{position:"absolute",left:"50%",height:"100%",width:`${(d.margin/maxMarginAll)*50}%`,background:C[p1],opacity:0.25}}/>}
+          {d.margin<0&&<div style={{position:"absolute",right:"50%",height:"100%",width:`${(Math.abs(d.margin)/maxMarginAll)*50}%`,background:C[p2],opacity:0.25}}/>}
+        </div>
+        <span style={{width:50,fontWeight:d.winner===p2?700:400,fontVariantNumeric:"tabular-nums",color:C[p2]}}>{d.s2}</span>
+        <span style={{width:60,textAlign:"center",fontSize:12,fontWeight:500,fontVariantNumeric:"tabular-nums",color:d.winner===p1?C[p1]:d.winner===p2?C[p2]:C.textLight}}>{d.margin>0?"+"+d.margin:d.margin<0?"+"+Math.abs(d.margin):"TIE"}</span>
+      </div>))}
+    </div>
+    
+    {/* Streaks */}
+    <div style={{marginBottom:32}}>
+      <Lbl>Streaks</Lbl>
+      <div style={{padding:"6px 0"}}><span style={{fontSize:12,color:C.textMid,width:140,display:"inline-block"}}>{p1} longest streak</span><span style={{fontSize:13,fontWeight:500,color:C[p1],fontVariantNumeric:"tabular-nums"}}>{streak1.longest} {streak1.longestRange?"("+streak1.longestRange+")":""}</span></div>
+      <div style={{padding:"6px 0"}}><span style={{fontSize:12,color:C.textMid,width:140,display:"inline-block"}}>{p2} longest streak</span><span style={{fontSize:13,fontWeight:500,color:C[p2],fontVariantNumeric:"tabular-nums"}}>{streak2.longest} {streak2.longestRange?"("+streak2.longestRange+")":""}</span></div>
+      {currentStreakPlayer&&<div style={{padding:"6px 0"}}><span style={{fontSize:12,color:C.textMid,width:140,display:"inline-block"}}>Current streak</span><span style={{fontSize:13,fontWeight:500,color:C[currentStreakPlayer],fontVariantNumeric:"tabular-nums"}}>{currentStreakPlayer} — {currentStreakCount} win{currentStreakCount>1?"s":""}</span></div>}
+    </div>
+  </div>);
+}
+
+
 function AdminView({activeYear,mob}) {
   const [games, setGames] = useState([]);
   const [regions, setRegions] = useState([]);
@@ -769,7 +944,7 @@ export default function App(){
   C=dark?DARK:LIGHT;
   const mob=useIsMobile();if(!mounted)return null;
   const selectPlayer=(p)=>{setPlayer(p);if(typeof window!=="undefined")localStorage.setItem("schanbacher_player",p);};const logout=()=>{setPlayer(null);if(typeof window!=="undefined")localStorage.removeItem("schanbacher_player");};if(!player)return<PlayerSelect onSelect={selectPlayer}/>;
-  const baseTabs=[{id:"dashboard",label:"Dashboard"},{id:"bracket",label:"Bracket"},{id:"picks",label:"Picks"},{id:"history",label:"History"},{id:"records",label:"Records"}];const tabs=player==="MJS"?[...baseTabs,{id:"admin",label:"Admin"}]:baseTabs;
+  const baseTabs=[{id:"dashboard",label:"Dashboard"},{id:"bracket",label:"Bracket"},{id:"picks",label:"Picks"},{id:"history",label:"History"},{id:"records",label:"Records"},{id:"h2h",label:"H2H"}];const tabs=player==="MJS"?[...baseTabs,{id:"admin",label:"Admin"}]:baseTabs;
   return(<div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Suisse Intl','Helvetica Neue',Helvetica,sans-serif",color:C.text}} onClick={()=>{if(showSettings)setShowSettings(false)}}>
     <nav style={{display:"flex",flexWrap:mob?"wrap":"nowrap",alignItems:"center",justifyContent:"space-between",padding:mob?"8px 16px":"0 40px",height:mob?"auto":48,background:C.surface,borderBottom:`1px solid ${C.border}`,position:"sticky",top:0,zIndex:100,gap:mob?4:0}}>
       <div style={{display:"flex",alignItems:"baseline",gap:8}}><span style={{fontSize:13,fontWeight:700,color:C.text,letterSpacing:0.5}}>Schanbacher</span><span style={{fontSize:9,color:C.textLight,letterSpacing:2,textTransform:"uppercase"}}>Tournament</span></div>
@@ -795,6 +970,7 @@ export default function App(){
     {view==="picks"&&<PicksView currentPlayer={player} activeYear={activeYear} tournaments={tournaments} mob={mob}/>}
     {view==="history"&&<HallOfFame seasonResults={seasonResults} tournaments={tournaments} currentPlayer={player} mob={mob}/>}
     {view==="records"&&<RecordsView seasonResults={seasonResults} tournaments={tournaments} mob={mob}/>}
+    {view==="h2h"&&<HeadToHead seasonResults={seasonResults} tournaments={tournaments} mob={mob}/>}
     {view==="admin"&&player==="MJS"&&<AdminView activeYear={activeYear} mob={mob}/>}
     </div>
     <footer style={{padding:"24px 40px",textAlign:"center",fontSize:10,color:C.textLight,letterSpacing:1,marginTop:40}}>Copyright 2026 — Field Development</footer>
