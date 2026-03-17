@@ -112,14 +112,108 @@ function BracketDisplay({bracket,currentPlayer}){
   </div>);
 }
 
+
+function StatusBar({games,seasonResults,schedule,year,tourney,players,mob}){
+  if(!games)return null;
+  const isComplete=tourney?.status==="complete";
+  const roundNames=["First Four","Round 1","Round 2","Sweet 16","Elite 8","Final Four","Championship"];
+  
+  // Find current/latest round with games
+  const roundsWithGames=[...new Set(games.map(g=>g.round))].sort((a,b)=>a-b);
+  let activeRound=null;let roundComplete=false;let hasLive=false;
+  for(const rnd of roundsWithGames){
+    const rndGames=games.filter(g=>g.round===rnd);
+    const finalCount=rndGames.filter(g=>g.status==="final").length;
+    const liveCount=rndGames.filter(g=>g.status==="live").length;
+    if(liveCount>0){activeRound=rnd;hasLive=true;roundComplete=false;break;}
+    if(finalCount>0&&finalCount<rndGames.length){activeRound=rnd;roundComplete=false;break;}
+    if(finalCount===rndGames.length&&finalCount>0){activeRound=rnd;roundComplete=true;}
+  }
+  
+  // If no games have started yet
+  const noGamesStarted=!games.some(g=>g.status==="live"||g.status==="final");
+  
+  // Get scores sorted by total
+  const scores=(seasonResults||[]).filter(r=>r.year===year).sort((a,b)=>b.total_score-a.total_score);
+  
+  // Calculate round-specific points for active round
+  const roundPtsMap=[1,1,2,3,4,5,6];
+  let roundScores=[];
+  if(activeRound!==null){
+    const rndGames=games.filter(g=>g.round===activeRound&&g.status==="final");
+    const rndField=["r1_score","r1_score","r2_score","r3_score","r4_score","r5_score","r6_score"][activeRound];
+    roundScores=scores.map(s=>({player:s.player_id,roundPts:s[rndField]||0,total:s.total_score})).sort((a,b)=>b.total-a.total);
+  }
+  
+  // Progress bar
+  const rndGamesAll=activeRound!==null?games.filter(g=>g.round===activeRound):[];
+  const rndFinal=rndGamesAll.filter(g=>g.status==="final").length;
+  const rndTotal=rndGamesAll.length;
+  const progress=rndTotal>0?rndFinal/rndTotal:0;
+  
+  // Next round schedule
+  const nextRound=activeRound!==null?roundsWithGames.find(r=>r>activeRound)||null:null;
+  const nextSched=schedule.find(s=>s.round===(roundComplete&&activeRound!==null?activeRound+1:nextRound));
+  const nextTime=nextSched?new Date(nextSched.tipoff_time):null;
+  const firstSched=schedule.find(s=>s.round===0)||schedule.find(s=>s.round===1);
+  const firstTime=firstSched?new Date(firstSched.tipoff_time):null;
+  
+  // Leader info
+  const leader=roundScores[0];
+  const second=roundScores[1];
+  const leadMargin=leader&&second?leader.total-second.total:0;
+  
+  const formatTime=(d)=>{if(!d)return"";const opts={weekday:"long",month:"long",day:"numeric",hour:"numeric",minute:"2-digit",timeZoneName:"short"};return d.toLocaleString("en-US",opts);};
+
+  if(isComplete){
+    const champ=tourney.champion_player;const champScore=scores.find(s=>s.player_id===champ);
+    const others=scores.filter(s=>s.player_id!==champ);
+    return(<div style={{border:"1px solid "+C.border,background:C.surface,padding:"16px 20px",marginBottom:28}}>
+      <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:8}}>2026 Champion</div>
+      <div style={{display:"flex",alignItems:"baseline",gap:8}}><span style={{fontSize:24,fontWeight:700,color:C[champ],letterSpacing:1}}>{champ}</span><span style={{fontSize:16,fontWeight:500,color:C.text,fontVariantNumeric:"tabular-nums"}}>{champScore?.total_score} points</span></div>
+      <div style={{height:1,background:C.borderLight,margin:"10px 0 8px"}}/>
+      <div style={{display:"flex",gap:24}}>{others.map(s=>(<div key={s.player_id} style={{display:"flex",alignItems:"baseline",gap:6}}><span style={{fontSize:12,fontWeight:700,color:C[s.player_id],letterSpacing:1}}>{s.player_id}</span><span style={{fontSize:13,fontVariantNumeric:"tabular-nums",color:C.text}}>{s.total_score}</span></div>))}</div>
+    </div>);
+  }
+  
+  if(noGamesStarted){
+    return(<div style={{border:"1px solid "+C.border,background:C.surface,padding:"16px 20px",marginBottom:28}}>
+      <div style={{display:"flex",alignItems:"baseline",justifyContent:"space-between"}}><span style={{fontSize:14,fontWeight:700,color:C.text}}>{year} NCAA Tournament</span><span style={{fontSize:12,color:C.textLight}}>68 teams</span></div>
+      {firstTime&&<div style={{fontSize:12,color:C.textMid,marginTop:8}}>First Four tips off {formatTime(firstTime)}</div>}
+    </div>);
+  }
+  
+  return(<div style={{border:"1px solid "+C.border,background:C.surface,padding:"16px 20px",marginBottom:28}}>
+    <div style={{display:"flex",alignItems:"baseline",justifyContent:"space-between",marginBottom:10}}>
+      <span style={{fontSize:14,fontWeight:700,color:C.text}}>{hasLive&&<span style={{display:"inline-block",width:6,height:6,background:"#c43e1c",marginRight:6,animation:"pulse 1.5s ease-in-out infinite",verticalAlign:"middle"}}/>}{roundNames[activeRound]||"Round"} {roundComplete?"complete":"in progress"}</span>
+      <span style={{fontSize:12,color:C.textLight}}>{rndFinal} of {rndTotal} games{rndTotal>0?" final":""}</span>
+    </div>
+    {roundScores.length>0&&<div style={{display:"flex",gap:mob?16:24,flexWrap:"wrap",alignItems:"baseline"}}>
+      {roundScores.map((s,i)=>(<div key={s.player} style={{display:"flex",alignItems:"baseline",gap:6}}>
+        <span style={{fontSize:12,fontWeight:700,color:C[s.player],letterSpacing:1}}>{s.player}</span>
+        <span style={{fontSize:13,fontWeight:500,fontVariantNumeric:"tabular-nums",color:C.text}}>+{s.roundPts}</span>
+        <span style={{fontSize:11,color:C.textLight,fontVariantNumeric:"tabular-nums"}}>({s.total} total)</span>
+      </div>))}
+    </div>}
+    {rndTotal>0&&<div style={{height:3,background:C.borderLight,marginTop:12}}><div style={{height:"100%",background:C.text,width:`${progress*100}%`,transition:"width 0.3s"}}/></div>}
+    {leadMargin>0&&<div style={{fontSize:11,color:C.textMid,marginTop:8}}>{leader.player} leads by {leadMargin}</div>}
+    {roundComplete&&nextTime&&<><div style={{height:1,background:C.borderLight,margin:"8px 0"}}/><div style={{fontSize:12,color:C.textMid}}>{roundNames[activeRound+1]||"Next round"} picks lock {formatTime(nextTime)}</div></>}
+  </div>);
+}
+
 function Dashboard({seasonResults,tournaments,mob,onRefresh}){
+  const[gameData,setGameData]=useState(null);const[schedule,setSchedule]=useState([]);
   if(!seasonResults?.length)return<Loading/>;
   const years=[...new Set(seasonResults.map(r=>r.year))].sort((a,b)=>b-a);const latestYear=years[0];
   const latest=seasonResults.filter(r=>r.year===latestYear).sort((a,b)=>b.total_score-a.total_score);
   const latestTourney=tournaments?.find(t=>t.year===latestYear);const isFinished=latestTourney?.status==='complete';
   const champCounts={};(tournaments||[]).filter(t=>t.status==='complete'&&t.champion_player).forEach(t=>{champCounts[t.champion_player]=(champCounts[t.champion_player]||0)+1;});
+  useEffect(()=>{if(!latestYear)return;(async()=>{const{supabase}=await import("../lib/supabase");const{data:games}=await supabase.from("games").select("*").eq("year",latestYear);setGameData(games||[]);const{data:sched}=await supabase.from("round_schedule").select("*").eq("year",latestYear);setSchedule(sched||[]);})();},[latestYear]);
+  // Auto-refresh game data every 30s if games are live
+  useEffect(()=>{if(!gameData)return;const hasLive=gameData.some(g=>g.status==="live");if(hasLive){const t=setInterval(async()=>{const{supabase}=await import("../lib/supabase");const{data:games}=await supabase.from("games").select("*").eq("year",latestYear);setGameData(games||[]);const{data:sr}=await supabase.from("season_results").select("*").eq("year",latestYear);/* trigger parent refresh would be ideal but for now just update local */},30000);return()=>clearInterval(t);}},[gameData]);
   return(<div style={{padding:mob?"20px 16px":"32px 40px",maxWidth:960,margin:"0 auto"}}>
     <div style={{marginBottom:40}}><Lbl>{isFinished?"Final Results":"Current Standings"}</Lbl><h2 style={{fontSize:32,color:C.text,margin:"4px 0 0",fontWeight:700,lineHeight:1}}>{latestYear}</h2>{isFinished&&latest[0]&&<div style={{fontSize:13,color:C.textMid,marginTop:6}}>Champion: <span style={{fontWeight:700,color:C[latest[0].player_id]}}>{latest[0].player_id}</span></div>}{!isFinished&&<div style={{fontSize:12,color:C.textMid,marginTop:6}}>Tournament in progress</div>}</div>
+    <StatusBar games={gameData} seasonResults={seasonResults} schedule={schedule} year={latestYear} tourney={latestTourney} players={PLAYERS_ALL} mob={mob}/>
     <div style={{marginBottom:40}}>{latest.map((pl,i)=>(<div key={pl.player_id} style={{display:"flex",alignItems:"baseline",padding:"10px 0",borderBottom:`1px solid ${C.borderLight}`}}><span style={{width:24,fontSize:12,color:C.textLight,fontVariantNumeric:"tabular-nums"}}>{i+1}.</span><span style={{width:48,fontSize:14,fontWeight:700,color:C[pl.player_id]||C.text,letterSpacing:1}}>{pl.player_id}</span><div style={{flex:1,height:4,background:C.borderLight,marginRight:16}}><div style={{height:"100%",width:`${(pl.total_score/124)*100}%`,background:C[pl.player_id]||C.text,opacity:0.5}}/></div><span style={{fontSize:20,fontWeight:700,color:i===0?C.text:C.textMid,fontVariantNumeric:"tabular-nums",minWidth:36,textAlign:"right"}}>{pl.total_score}</span></div>))}</div>
     <div style={{marginBottom:40}}><Lbl>Round Breakdown</Lbl><div style={{overflowX:mob?"auto":"visible",WebkitOverflowScrolling:"touch"}}><table style={{width:"100%",borderCollapse:"collapse",minWidth:mob?600:"auto"}}><thead><tr style={{borderBottom:`2px solid ${C.text}`}}><th style={{textAlign:"left",padding:"6px 0",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>PLAYER</th>{RN.map((r,i)=><th key={r} style={{textAlign:"right",padding:"6px 6px",fontSize:9,color:C.textLight,letterSpacing:1,fontWeight:600}}>{r.toUpperCase()}<br/><span style={{fontWeight:400}}>{[1,2,3,4,5,6][i]}pt/{RMAX[i]}</span></th>)}<th style={{textAlign:"right",padding:"6px 0",fontSize:10,color:C.text,fontWeight:700}}>TOTAL</th></tr></thead><tbody>{latest.map((pl,pi)=>{const rounds=[pl.r1_score,pl.r2_score,pl.r3_score,pl.r4_score,pl.r5_score,pl.r6_score];return(<tr key={pl.player_id} style={{borderBottom:`1px solid ${C.borderLight}`}}><td style={{padding:"8px 0",fontWeight:700,fontSize:13,color:C[pl.player_id]||C.text,letterSpacing:1}}>{pl.player_id}</td>{rounds.map((v,i)=><td key={i} style={{textAlign:"right",padding:"8px 6px",fontSize:13,fontVariantNumeric:"tabular-nums",color:v==null||v===0?C.textLight:v===RMAX[i]?C.correct:C.text,fontWeight:v===RMAX[i]?700:400}}>{v??0}</td>)}<td style={{textAlign:"right",padding:"8px 0",fontSize:16,fontWeight:700,color:pi===0?C.text:C.textMid,fontVariantNumeric:"tabular-nums"}}>{pl.total_score}</td></tr>);})}</tbody></table></div></div>
     <Lbl>All-Time Championships</Lbl><div style={{display:"flex",gap:40}}>{PLAYERS_ALL.map(p=>({p,c:champCounts[p]||0})).sort((a,b)=>b.c-a.c).map(({p,c})=>(<div key={p}><div style={{fontSize:36,fontWeight:700,color:C[p]||C.text,fontVariantNumeric:"tabular-nums"}}>{c}</div><div style={{fontSize:12,color:C.textLight,letterSpacing:1,fontWeight:600}}>{p}</div></div>))}</div>
