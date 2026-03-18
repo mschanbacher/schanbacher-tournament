@@ -1498,6 +1498,8 @@ export default function App(){
   useEffect(()=>{
     fetchAllSeasonResults().then(setSeasonResults).catch(console.error);
     fetchTournaments().then(ts=>{setTournaments(ts);const ay=getActiveYear(ts);setActiveYear(ay);}).catch(console.error);
+    const t=setInterval(()=>{fetchAllSeasonResults().then(setSeasonResults).catch(console.error);},30000);
+    return()=>clearInterval(t);
   },[]);
   C=dark?DARK:LIGHT;
   const mob=useIsMobile();if(!mounted)return null;
