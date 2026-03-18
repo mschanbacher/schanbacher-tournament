@@ -43,18 +43,15 @@ function formatTipoff(tipoff){
 
 function formatClock(detail){
   if(!detail)return"";
-  // ESPN statusDetail is like "12:41 - 2nd Half", "Halftime", "End of 1st Half"
-  if(detail.toLowerCase().includes("halftime")||detail.toLowerCase().includes("half"))return"Half";
-  // Extract time remaining
+  if(detail.toLowerCase()==="halftime"||detail.toLowerCase()==="half"||detail.toLowerCase().includes("end of"))return"Half";
   const timeMatch=detail.match(/(\d+:\d+)/);
-  const periodMatch=detail.match(/(1st|2nd)/i);
   if(timeMatch)return timeMatch[1];
   return detail.slice(0,8);
 }
 
 function formatPeriod(detail){
   if(!detail)return"";
-  if(detail.toLowerCase().includes("halftime")||detail.toLowerCase().includes("half"))return"Half";
+  if(detail.toLowerCase()==="halftime"||detail.toLowerCase()==="half"||detail.toLowerCase().includes("end of"))return"Half";
   if(detail.toLowerCase().includes("2nd"))return"2nd";
   if(detail.toLowerCase().includes("1st"))return"1st";
   if(detail.toLowerCase().includes("ot"))return"OT";
