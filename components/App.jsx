@@ -32,8 +32,37 @@ function useIsMobile() {
 function Lbl({children}){return<div style={{fontSize:9,letterSpacing:3,color:C.textLight,textTransform:"uppercase",fontWeight:600,marginBottom:12}}>{children}</div>}
 function Loading(){return<div style={{padding:"60px 40px",textAlign:"center",color:C.textLight,fontSize:13}}>Loading...</div>}
 
+function formatTipoff(tipoff){
+  if(!tipoff)return"";
+  const d=new Date(tipoff);
+  let h=d.getHours(),m=d.getMinutes();
+  const ampm=h>=12?"p":"a";
+  h=h%12||12;
+  return h+":"+(m<10?"0":"")+m+ampm;
+}
+
+function formatClock(detail){
+  if(!detail)return"";
+  // ESPN statusDetail is like "12:41 - 2nd Half", "Halftime", "End of 1st Half"
+  if(detail.toLowerCase().includes("halftime")||detail.toLowerCase().includes("half"))return"Half";
+  // Extract time remaining
+  const timeMatch=detail.match(/(\d+:\d+)/);
+  const periodMatch=detail.match(/(1st|2nd)/i);
+  if(timeMatch)return timeMatch[1];
+  return detail.slice(0,8);
+}
+
+function formatPeriod(detail){
+  if(!detail)return"";
+  if(detail.toLowerCase().includes("halftime")||detail.toLowerCase().includes("half"))return"Half";
+  if(detail.toLowerCase().includes("2nd"))return"2nd";
+  if(detail.toLowerCase().includes("1st"))return"1st";
+  if(detail.toLowerCase().includes("ot"))return"OT";
+  return"";
+}
+
 function GameCell({game,roundIdx,currentPlayer,allPlayers,roundLocked}){
-  if(!game||(!game.t1&&!game.t2))return(<div style={{display:"flex",alignItems:"stretch"}}><div style={{width:24,border:"1px dashed #e0ddd6",borderRight:"none"}}/>
+  if(!game||(!game.t1&&!game.t2))return(<div style={{display:"flex",alignItems:"stretch"}}><div style={{width:44}}/><div style={{width:24,border:"1px dashed #e0ddd6",borderRight:"none"}}/>
 <div style={{width:200,border:"1px dashed #e0ddd6",background:"#f5f3ef",display:"flex",alignItems:"center",justifyContent:"center",height:40}}><span style={{fontSize:10,color:C.textLight,letterSpacing:1}}>TBD</span></div><div style={{width:24,border:"1px dashed #e0ddd6",borderLeft:"none"}}/></div>);
   const isLive=game.status==="live";const isFinal=game.status==="final";const isPending=!isLive&&!isFinal;const pts=RP[roundIdx]||0;
   const otherPlayers=(allPlayers||[]).filter(p=>p!==currentPlayer);
@@ -70,13 +99,13 @@ function GameCell({game,roundIdx,currentPlayer,allPlayers,roundLocked}){
       <TeamRow team={game.t1} score={game.sc1} seed={game.s1} isTop={true}/>
       <TeamRow team={game.t2} score={game.sc2} seed={game.s2} isTop={false}/>
     </div>
-    {!isPending&&myPick?(<div style={{width:24,display:"flex",alignItems:"center",justifyContent:"center",background:gotIt?C.correct:C.wrong,color:"#fff",fontSize:10,fontWeight:700,fontVariantNumeric:"tabular-nums",border:"1px solid "+(gotIt?C.correct:C.wrong),borderLeft:"none"}}>{gotIt?"+"+pts:"0"}</div>):(<div style={{width:24,border:"1px solid "+bdr,borderLeft:"none"}}/>)}
+    {isLive?(<div style={{width:24,display:"flex",alignItems:"center",justifyContent:"center",border:"1px solid #c43e1c",borderLeft:"none",fontSize:8,fontWeight:600,color:"#c43e1c",lineHeight:1.1,textAlign:"center"}}>{periodStr}</div>):isFinal&&myPick?(<div style={{width:24,display:"flex",alignItems:"center",justifyContent:"center",background:gotIt?C.correct:C.wrong,color:"#fff",fontSize:10,fontWeight:700,fontVariantNumeric:"tabular-nums",border:"1px solid "+(gotIt?C.correct:C.wrong),borderLeft:"none"}}>{gotIt?"+"+pts:"0"}</div>):(<div style={{width:24,border:"1px solid "+bdr,borderLeft:"none"}}/>)}
   </Wrap>);
 }
 
 function RegionBracket({games,currentPlayer,allPlayers}){
   if(!games||games.length===0)return null;
-  const GH=44,R1_GAP=10,COL=268,CELL_W=248;const pos=[];
+  const GH=44,R1_GAP=10,COL=312,CELL_W=292;const pos=[];
   pos.push(games[0].map((_,i)=>i*(GH+R1_GAP)));
   for(let r=1;r<games.length;r++){const prev=pos[r-1];pos.push(games[r].map((_,i)=>(prev[i*2]!=null&&prev[i*2+1]!=null)?(prev[i*2]+prev[i*2+1])/2:0));}
   const totalH=pos[0][pos[0].length-1]+GH+20;

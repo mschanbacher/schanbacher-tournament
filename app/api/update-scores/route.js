@@ -235,6 +235,7 @@ export async function GET(request) {
         // Update game
         const updateData = { score1: sc1, score2: sc2, winner, status: 'final' }
         if (match.espnId) updateData.espn_id = match.espnId
+        updateData.status_detail = 'Final'
         const { error } = await supabase
           .from('games')
           .update(updateData)
@@ -318,6 +319,7 @@ export async function GET(request) {
         // Mark as live, update scores
         const liveData = { score1: sc1, score2: sc2, status: 'live' }
         if (match.espnId) liveData.espn_id = match.espnId
+        if (match.statusDetail) liveData.status_detail = match.statusDetail
         await supabase
           .from('games')
           .update(liveData)
