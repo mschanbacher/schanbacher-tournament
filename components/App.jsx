@@ -93,7 +93,11 @@ function GameCell({game,roundIdx,currentPlayer,allPlayers,roundLocked}){
   const bdr=isPending?C.borderLight:C.border;
   const espnUrl=game.espnId?`https://www.espn.com/mens-college-basketball/game/_/gameId/${game.espnId}`:null;
   const Wrap=({children})=>espnUrl&&!isPending?<a href={espnUrl} target="_blank" rel="noopener noreferrer" style={{display:"flex",alignItems:"stretch",textDecoration:"none",color:"inherit",cursor:"pointer"}}>{children}</a>:<div style={{display:"flex",alignItems:"stretch"}}>{children}</div>;
+  const tipoffStr=formatTipoff(game.tipoff||game.tipoff_time);
+  const clockStr=isLive?formatClock(game.statusDetail):"";
+  const periodStr=isLive?formatPeriod(game.statusDetail):"";
   return(<Wrap>
+    <div style={{width:44,display:"flex",alignItems:"center",justifyContent:"flex-end",paddingRight:4,fontSize:10,fontVariantNumeric:"tabular-nums",color:isLive?"#c43e1c":C.textLight,flexShrink:0,fontWeight:isLive?600:400}}>{isLive?<><span style={{display:"inline-block",width:5,height:5,background:"#c43e1c",marginRight:3,flexShrink:0,animation:"pulse 1.5s ease-in-out infinite"}}/>{clockStr||"Live"}</>:isFinal?"Final":tipoffStr}</div>
     <div style={{width:24,background:isSplit?"#C6982B":"transparent",flexShrink:0,border:"1px solid "+bdr,borderRight:"none",display:"flex",alignItems:"center",justifyContent:"center"}}>{isLive&&<div style={{width:6,height:6,background:isSplit?"#fff":"#c43e1c",animation:"pulse 1.5s ease-in-out infinite"}}/>}</div>
     <div style={{width:200,border:"1px solid "+(isLive?"#c43e1c":bdr),background:isPending?C.bg:C.surface,opacity:isPending?0.65:1}}>
       <TeamRow team={game.t1} score={game.sc1} seed={game.s1} isTop={true}/>
