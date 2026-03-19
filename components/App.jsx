@@ -124,6 +124,8 @@ function BracketDisplay({bracket,currentPlayer}){
   useEffect(()=>{if(regionNames.length>0&&!region&&!showFF&&!showF4)setRegion(regionNames[0]);},[regionNames.length,region,showFF,showF4]);
   const regionData=region&&bracket.regions?.[region];
   const regionGamesAll=regionData?[regionData.r1||[],regionData.r2||[],regionData.s16||[],regionData.e8||[]]:null;const regionGames=regionGamesAll?regionGamesAll.filter(r=>r.length>0):null;
+  const isRoundTipped=(gms)=>gms.some(g=>g&&(g.status==="live"||g.status==="final"||(g.tipoff&&new Date(g.tipoff)<=new Date())));
+  const regionRoundLocks=bracket.regions?{1:isRoundTipped(Object.values(bracket.regions).flatMap(r=>r.r1)),2:isRoundTipped(Object.values(bracket.regions).flatMap(r=>r.r2)),3:isRoundTipped(Object.values(bracket.regions).flatMap(r=>r.s16)),4:isRoundTipped(Object.values(bracket.regions).flatMap(r=>r.e8))}:{};
   return(<div>
     <div style={{display:"flex",gap:20,alignItems:"center",marginBottom:16,fontSize:11,color:C.textMid}}>
       <div style={{display:"flex",alignItems:"center",gap:4}}><div style={{width:3,height:12,background:C.correct}}/> Correct</div>
