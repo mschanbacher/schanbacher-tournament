@@ -263,7 +263,7 @@ export async function GET(request) {
       if (game.espn_id) { matched++; continue }
 
       const match = allEspnGames.find(eg => {
-        return eg.completed && (
+        return (
           (namesMatch(eg.team1, game.team1) && namesMatch(eg.team2, game.team2)) ||
           (namesMatch(eg.team1, game.team2) && namesMatch(eg.team2, game.team1))
         )
