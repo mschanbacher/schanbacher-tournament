@@ -33,12 +33,13 @@ function Lbl({children}){return<div style={{fontSize:9,letterSpacing:3,color:C.t
 function Loading(){return<div style={{padding:"60px 40px",textAlign:"center",color:C.textLight,fontSize:13}}>Loading...</div>}
 
 function formatTipoff(tipoff){
-  if(!tipoff)return"";
+  if(!tipoff)return{day:"",time:""};
   const d=new Date(tipoff);
   let h=d.getHours(),m=d.getMinutes();
   const ampm=h>=12?"p":"a";
   h=h%12||12;
-  return h+":"+(m<10?"0":"")+m+ampm;
+  const days=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  return{day:days[d.getDay()],time:h+":"+(m<10?"0":"")+m+ampm};
 }
 
 function formatClock(detail){
@@ -94,7 +95,7 @@ function GameCell({game,roundIdx,currentPlayer,allPlayers,roundLocked}){
   const clockStr=isLive?formatClock(game.statusDetail):"";
   const periodStr=isLive?formatPeriod(game.statusDetail):"";
   return(<Wrap>
-    <div style={{width:44,display:"flex",alignItems:"center",justifyContent:"flex-end",paddingRight:4,fontSize:10,fontVariantNumeric:"tabular-nums",color:isLive?"#c43e1c":C.textLight,flexShrink:0,fontWeight:isLive?600:400}}>{isLive?<><span style={{display:"inline-block",width:5,height:5,background:"#c43e1c",marginRight:3,flexShrink:0,animation:"pulse 1.5s ease-in-out infinite"}}/>{clockStr||"Live"}</>:isFinal?"Final":tipoffStr}</div>
+    <div style={{width:44,display:"flex",alignItems:"center",justifyContent:"flex-end",paddingRight:4,fontSize:10,fontVariantNumeric:"tabular-nums",color:isLive?"#c43e1c":C.textLight,flexShrink:0,fontWeight:isLive?600:400}}>{isLive?<><span style={{display:"inline-block",width:5,height:5,background:"#c43e1c",marginRight:3,flexShrink:0,animation:"pulse 1.5s ease-in-out infinite"}}/>{clockStr||"Live"}</>:isFinal?"Final":tipoffStr.time?<span style={{display:"flex",flexDirection:"column",alignItems:"flex-end",lineHeight:1.2}}><span>{tipoffStr.time}</span><span style={{fontSize:9,opacity:0.7}}>{tipoffStr.day}</span></span>:""}</div>
     <div style={{width:24,background:isSplit?"#C6982B":"transparent",flexShrink:0,border:"1px solid "+bdr,borderRight:"none",display:"flex",alignItems:"center",justifyContent:"center"}}>{isLive&&<div style={{width:6,height:6,background:isSplit?"#fff":"#c43e1c",animation:"pulse 1.5s ease-in-out infinite"}}/>}</div>
     <div style={{width:200,border:"1px solid "+(isLive?"#c43e1c":bdr),background:isPending?C.bg:C.surface,opacity:isPending?0.65:1}}>
       <TeamRow team={game.t1} score={game.sc1} seed={game.s1} isTop={true}/>
