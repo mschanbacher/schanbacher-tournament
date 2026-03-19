@@ -112,10 +112,11 @@ function namesMatch(a, b) {
   // Check if any variant of A matches any variant of B
   for (const an of aNames) { if (bNames.has(an)) return true }
   for (const bn of bNames) { if (aNames.has(bn)) return true }
-  // Last word match
+  // Last word match (skip common suffixes like "state")
+  const skipWords = new Set(["state","university","college","tech","city","central","southern","northern","eastern","western"])
   const lastA = sa.split(' ').pop()
   const lastB = sb.split(' ').pop()
-  if (lastA.length > 4 && lastA === lastB) return true
+  if (lastA.length > 4 && lastA === lastB && !skipWords.has(lastA)) return true
   return false
 }
 
