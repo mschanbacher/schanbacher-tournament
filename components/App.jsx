@@ -249,6 +249,21 @@ function Dashboard({seasonResults,tournaments,mob,onRefresh}){
   return(<div style={{padding:mob?"20px 16px":"32px 40px",maxWidth:960,margin:"0 auto"}}>
     <div style={{marginBottom:40}}><Lbl>{isFinished?"Final Results":"Current Standings"}</Lbl><h2 style={{fontSize:32,color:C.text,margin:"4px 0 0",fontWeight:700,lineHeight:1}}>{latestYear}</h2>{isFinished&&latest[0]&&<div style={{fontSize:13,color:C.textMid,marginTop:6}}>Champion: <span style={{fontWeight:700,color:C[latest[0].player_id]}}>{latest[0].player_id}</span></div>}{!isFinished&&<div style={{fontSize:12,color:C.textMid,marginTop:6}}>Tournament in progress</div>}</div>
     <StatusBar games={gameData} seasonResults={seasonResults} schedule={schedule} year={latestYear} tourney={latestTourney} players={PLAYERS_ALL} mob={mob}/>
+    {gameData&&(()=>{
+      const liveGames=gameData.filter(g=>g.status==="live").sort((a,b)=>(a.tipoff_time||"").localeCompare(b.tipoff_time||""));
+      if(liveGames.length===0)return null;
+      // Build game objects matching what GameCell expects
+      const gameIds=liveGames.map(g=>g.id);
+      const pickMap={};
+      if(pickData){for(const p of pickData){if(!pickMap[p.game_id])pickMap[p.game_id]={};pickMap[p.game_id][p.player_id]=p.picked_team;}}
+      const liveGameObjs=liveGames.map(g=>({id:g.id,s1:g.seed1,t1:g.team1,s2:g.seed2,t2:g.team2,sc1:g.score1,sc2:g.score2,w:g.winner,picks:pickMap[g.id]||{},status:g.status,tipoff:g.tipoff_time,espnId:g.espn_id,statusDetail:g.status_detail}));
+      return(<div style={{marginBottom:28,border:"1px solid "+C.border,background:C.surface,padding:"16px 20px"}}>
+        <div style={{fontSize:10,letterSpacing:2,color:C.textLight,textTransform:"uppercase",fontWeight:600,marginBottom:12}}>Live games</div>
+        <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:10}}>
+          {liveGameObjs.map(g=><GameCell key={g.id} game={g} roundIdx={g.status==="live"?1:1} currentPlayer={player} allPlayers={PLAYERS_ALL} roundLocked={true}/>)}
+        </div>
+      </div>);
+    })()}
     {gameData&&pickData&&!isFinished&&(()=>{
       const finalGames=gameData.filter(g=>g.status==="final");
       const pendingGames=gameData.filter(g=>g.status!=="final");
