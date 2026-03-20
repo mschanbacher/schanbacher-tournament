@@ -260,7 +260,7 @@ function Dashboard({seasonResults,tournaments,mob,onRefresh}){
       return(<div style={{marginBottom:28,border:"1px solid "+C.border,background:C.surface,padding:"16px 20px"}}>
         <div style={{fontSize:10,letterSpacing:2,color:C.textLight,textTransform:"uppercase",fontWeight:600,marginBottom:12}}>Live games</div>
         <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:10}}>
-          {liveGameObjs.map(g=><GameCell key={g.id} game={g} roundIdx={g.status==="live"?1:1} currentPlayer={player} allPlayers={PLAYERS_ALL} roundLocked={true}/>)}
+          {liveGameObjs.map(g=><GameCell key={g.id} game={g} roundIdx={g.status==="live"?1:1} currentPlayer={currentPlayer} allPlayers={PLAYERS_ALL} roundLocked={true}/>)}
         </div>
       </div>);
     })()}
