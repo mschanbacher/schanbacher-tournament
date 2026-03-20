@@ -97,6 +97,8 @@ const ALIASES = {
   'ut arlington': ['texas-arlington','ut arlington','texas arlington'],
   'mississippi valley': ['mississippi valley','mississippi valley state'],
   'mississippi valley state': ['mississippi valley','mississippi valley state'],
+  'hawaii': ['hawaii','hawai\'i','hawai i'],
+  'hawai\'i': ['hawaii','hawai\'i','hawai i'],
   'tennessee chatanooga': ['chattanooga','tennessee chatanooga','tennessee chattanooga'],
   'tennessee chattanooga': ['chattanooga','tennessee chatanooga','tennessee chattanooga'],
   'la salle': ['la salle','lasalle'],
@@ -112,7 +114,7 @@ function normalize(name) {
   if (!name) return ''
   return name
     .replace(/\./g, '')
-    .replace(/['']/g, "'")
+    .replace(/['''`ʻ]/g, "'")
     .replace(/-/g, ' ')
     .replace(/[()]/g, '')
     .replace(/\s+/g, ' ')

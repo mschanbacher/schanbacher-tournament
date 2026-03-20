@@ -67,7 +67,7 @@ function normalize(name) {
   if (!name) return ''
   return name
     .replace(/\./g, '')
-    .replace(/['']/g, "'")
+    .replace(/['''`ʻ]/g, "'")
     .replace(/-/g, ' ')
     .replace(/[()]/g, '')
     .replace(/\s+/g, ' ')
