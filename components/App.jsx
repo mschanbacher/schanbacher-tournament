@@ -265,7 +265,7 @@ function Dashboard({seasonResults,tournaments,mob,onRefresh,currentPlayer}){
       </div>);
     })()}
     {gameData&&pickData&&!isFinished&&(()=>{
-      const finalGames=gameData.filter(g=>g.status==="final");
+      const finalGames=gameData.filter(g=>g.status==="final").sort((a,b)=>(a.tipoff_time||"").localeCompare(b.tipoff_time||"")||a.id-b.id);
       const pendingGames=gameData.filter(g=>g.status!=="final");
       const pickMap={};for(const p of pickData){if(!pickMap[p.player_id])pickMap[p.player_id]={};pickMap[p.player_id][p.game_id]=p;}
       const playerData=PLAYERS_ALL.map(player=>{
