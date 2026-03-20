@@ -235,7 +235,7 @@ function StatusBar({games,seasonResults,schedule,year,tourney,players,mob}){
   </div>);
 }
 
-function Dashboard({seasonResults,tournaments,mob,onRefresh}){
+function Dashboard({seasonResults,tournaments,mob,onRefresh,currentPlayer}){
   const[gameData,setGameData]=useState(null);const[schedule,setSchedule]=useState([]);
   const years=seasonResults?.length?[...new Set(seasonResults.map(r=>r.year))].sort((a,b)=>b-a):[];
   const latestYear=years[0]||null;
