@@ -98,6 +98,8 @@ const ALIASES = {
   'mississippi valley': ['mississippi valley','mississippi valley state'],
   'mississippi valley state': ['mississippi valley','mississippi valley state'],
   'hawaii': ['hawaii','hawai\'i','hawai i'],
+  'cal baptist': ['cal baptist','california baptist'],
+  'california baptist': ['cal baptist','california baptist'],
   'hawai\'i': ['hawaii','hawai\'i','hawai i'],
   'tennessee chatanooga': ['chattanooga','tennessee chatanooga','tennessee chattanooga'],
   'tennessee chattanooga': ['chattanooga','tennessee chatanooga','tennessee chattanooga'],
