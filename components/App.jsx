@@ -1751,7 +1751,7 @@ export default function App(){
     </div>
     </nav>
     <div style={{zoom:fontScale}}>
-    {view==="dashboard"&&<Dashboard seasonResults={seasonResults} tournaments={tournaments} mob={mob}/>}
+    {view==="dashboard"&&<Dashboard seasonResults={seasonResults} tournaments={tournaments} mob={mob} currentPlayer={player}/>}
     {view==="bracket"&&<BracketView currentPlayer={player} activeYear={activeYear} mob={mob}/>}
     {view==="picks"&&<PicksView currentPlayer={player} activeYear={activeYear} tournaments={tournaments} mob={mob}/>}
     {view==="history"&&<HallOfFame seasonResults={seasonResults} tournaments={tournaments} currentPlayer={player} mob={mob}/>}
