@@ -270,11 +270,11 @@ function Dashboard({seasonResults,tournaments,mob,onRefresh}){
       const pickMap={};for(const p of pickData){if(!pickMap[p.player_id])pickMap[p.player_id]={};pickMap[p.player_id][p.game_id]=p;}
       const playerData=PLAYERS_ALL.map(player=>{
         const pp=pickMap[player]||{};
-        const seq=finalGames.map(g=>{const pick=pp[g.id];return pick?{correct:pick.points_earned>0}:null;}).filter(Boolean);
+        const seq=finalGames.map(g=>{const pick=pp[g.id];return pick?{correct:pick.points_earned>0,team1:g.team1,team2:g.team2,score1:g.score1,score2:g.score2,winner:g.winner,picked:pick.picked_team}:null;}).filter(Boolean);
         const pending=pendingGames.filter(g=>pp[g.id]).length;
         let curType=null,curCount=0;
         for(let i=seq.length-1;i>=0;i--){if(curType===null)curType=seq[i].correct;if(seq[i].correct===curType)curCount++;else break;}
-        return{player,seq:seq.map(s=>s.correct),pending,curCount,curType};
+        return{player,seq,pending,curCount,curType};
       });
       if(!playerData.some(d=>d.seq.length>0||d.pending>0))return null;
       return(<div style={{marginBottom:28,border:"1px solid "+C.border,background:C.surface,padding:"16px 20px"}}>
@@ -282,7 +282,7 @@ function Dashboard({seasonResults,tournaments,mob,onRefresh}){
         {playerData.map(d=>(<div key={d.player} style={{display:"flex",alignItems:"center",marginBottom:6}}>
           <span style={{width:40,fontSize:11,fontWeight:600,color:C[d.player],letterSpacing:1,flexShrink:0}}>{d.player}</span>
           <div style={{display:"flex",gap:1,flexWrap:"wrap",flex:1}}>
-            {d.seq.map((correct,i)=>(<div key={i} style={{width:14,height:14,background:correct?C.correct:C.wrong,opacity:correct?0.7:0.5}}/>))}
+            {d.seq.map((s,i)=>(<div key={i} title={`${s.winner} ${s.score1}-${s.score2}\nPicked: ${s.picked} ${s.correct?"\u2713":"\u2717"}`} style={{width:14,height:14,background:s.correct?C.correct:C.wrong,opacity:s.correct?0.7:0.5,cursor:"default"}}/>))}
             {Array.from({length:d.pending}).map((_,i)=>(<div key={"p"+i} style={{width:14,height:14,background:C.borderLight,opacity:0.4}}/>))}
           </div>
           {d.seq.length>0&&<span style={{fontSize:11,color:C.textMid,marginLeft:8,flexShrink:0,fontVariantNumeric:"tabular-nums"}}>{d.curCount}{d.curType?"✓":"✗"}</span>}
