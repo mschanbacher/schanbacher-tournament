@@ -61,7 +61,8 @@ export async function GET(request) {
       for (const g of currentRound) {
         const regionName = g.regions?.name || 'none'
         if (!regionWinners[regionName]) regionWinners[regionName] = []
-        regionWinners[regionName].push({ winner: g.winner, region_id: g.region_id, order: g.game_order })
+        const winnerSeed = g.winner === g.team1 ? g.seed1 : g.seed2
+        regionWinners[regionName].push({ winner: g.winner, seed: winnerSeed, region_id: g.region_id, order: g.game_order })
       }
 
       if (nextRnd <= 4) {
@@ -72,34 +73,41 @@ export async function GET(request) {
             const { error } = await supabase.from('games').insert({
               year, region_id: winners[i].region_id,
               round: nextRnd, game_order: Math.floor(i / 2),
-              team1: winners[i].winner, team2: winners[i + 1].winner,
+              seed1: winners[i].seed, team1: winners[i].winner,
+              seed2: winners[i + 1].seed, team2: winners[i + 1].winner,
               status: 'pending', tipoff_time: tipoff
             })
             if (!error) created.push(`R${nextRnd}: ${winners[i].winner} vs ${winners[i+1].winner}`)
           }
         }
       } else if (nextRnd === 5) {
-        const e8Winners = currentRound.map(g => g.winner).filter(Boolean)
-        if (e8Winners.length === 4) {
+        const e8Data = currentRound.map(g => ({ winner: g.winner, seed: g.winner === g.team1 ? g.seed1 : g.seed2 })).filter(d => d.winner)
+        if (e8Data.length === 4) {
           await supabase.from('games').insert({
             year, region_id: null, round: 5, game_order: 0,
-            team1: e8Winners[0], team2: e8Winners[1], status: 'pending', tipoff_time: tipoff
+            seed1: e8Data[0].seed, team1: e8Data[0].winner,
+            seed2: e8Data[1].seed, team2: e8Data[1].winner,
+            status: 'pending', tipoff_time: tipoff
           })
           await supabase.from('games').insert({
             year, region_id: null, round: 5, game_order: 1,
-            team1: e8Winners[2], team2: e8Winners[3], status: 'pending', tipoff_time: tipoff
+            seed1: e8Data[2].seed, team1: e8Data[2].winner,
+            seed2: e8Data[3].seed, team2: e8Data[3].winner,
+            status: 'pending', tipoff_time: tipoff
           })
-          created.push(`FF: ${e8Winners[0]} vs ${e8Winners[1]}`)
-          created.push(`FF: ${e8Winners[2]} vs ${e8Winners[3]}`)
+          created.push(`FF: ${e8Data[0].winner} vs ${e8Data[1].winner}`)
+          created.push(`FF: ${e8Data[2].winner} vs ${e8Data[3].winner}`)
         }
       } else if (nextRnd === 6) {
-        const ffWinners = currentRound.map(g => g.winner).filter(Boolean)
-        if (ffWinners.length === 2) {
+        const ffData = currentRound.map(g => ({ winner: g.winner, seed: g.winner === g.team1 ? g.seed1 : g.seed2 })).filter(d => d.winner)
+        if (ffData.length === 2) {
           await supabase.from('games').insert({
             year, region_id: null, round: 6, game_order: 0,
-            team1: ffWinners[0], team2: ffWinners[1], status: 'pending', tipoff_time: tipoff
+            seed1: ffData[0].seed, team1: ffData[0].winner,
+            seed2: ffData[1].seed, team2: ffData[1].winner,
+            status: 'pending', tipoff_time: tipoff
           })
-          created.push(`CH: ${ffWinners[0]} vs ${ffWinners[1]}`)
+          created.push(`CH: ${ffData[0].winner} vs ${ffData[1].winner}`)
         }
       }
     }
