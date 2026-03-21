@@ -203,12 +203,15 @@ export async function GET(request) {
     const today = new Date()
     const yesterday = new Date(today)
     yesterday.setDate(yesterday.getDate() - 1)
+    const tomorrow = new Date(today)
+    tomorrow.setDate(tomorrow.getDate() + 1)
     
-    const [todayEvents, yesterdayEvents] = await Promise.all([
+    const [todayEvents, yesterdayEvents, tomorrowEvents] = await Promise.all([
       fetchESPNScores(today),
       fetchESPNScores(yesterday),
+      fetchESPNScores(tomorrow),
     ])
-    const allEvents = [...todayEvents, ...yesterdayEvents]
+    const allEvents = [...todayEvents, ...yesterdayEvents, ...tomorrowEvents]
     const espnGames = allEvents.map(parseESPNEvent).filter(Boolean)
 
     let updatedCount = 0
