@@ -268,6 +268,14 @@ export async function GET(request) {
       if (game.espn_id) { matched++; continue }
 
       const match = allEspnGames.find(eg => {
+        // Primary: match by seeds
+        if (eg.seed1 && eg.seed2 && game.seed1 && game.seed2) {
+          if ((eg.seed1 === game.seed1 && eg.seed2 === game.seed2) ||
+              (eg.seed1 === game.seed2 && eg.seed2 === game.seed1)) return true
+        }
+        // Fallback: ESPN ID
+        if (game.espn_id && game.espn_id === eg.id) return true
+        // Fallback: name matching
         return (
           (namesMatch(eg.team1, game.team1) && namesMatch(eg.team2, game.team2)) ||
           (namesMatch(eg.team1, game.team2) && namesMatch(eg.team2, game.team1))

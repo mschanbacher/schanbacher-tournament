@@ -104,7 +104,11 @@ export async function GET(request) {
       }
     }
 
-    return Response.json({ success: true, year, gamesCreated: created })
+    const debug = {}
+    for (const [rnd, games] of Object.entries(rounds)) {
+      debug[`round_${rnd}`] = { total: games.length, final: games.filter(g => g.status === 'final').length, hasRegion: games.filter(g => g.regions?.name).length }
+    }
+    return Response.json({ success: true, year, gamesCreated: created, debug, currentRound: tournament.current_round })
   } catch (error) {
     console.error('Advance round error:', error)
     return Response.json({ error: error.message }, { status: 500 })

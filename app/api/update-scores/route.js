@@ -149,6 +149,8 @@ function parseESPNEvent(event) {
   const teams = comp.competitors || []
   const team1 = teams[0]?.team?.displayName || teams[0]?.team?.shortDisplayName
   const team2 = teams[1]?.team?.displayName || teams[1]?.team?.shortDisplayName
+  const seed1 = parseInt(teams[0]?.curatedRank?.current) || null
+  const seed2 = parseInt(teams[1]?.curatedRank?.current) || null
   const score1 = parseInt(teams[0]?.score) || 0
   const score2 = parseInt(teams[1]?.score) || 0
 
@@ -216,6 +218,14 @@ export async function GET(request) {
     for (const game of games) {
       // Try to match this game to an ESPN game
       const match = espnGames.find(eg => {
+        // Primary: match by seeds (unambiguous for tournament games)
+        if (eg.seed1 && eg.seed2 && game.seed1 && game.seed2) {
+          if ((eg.seed1 === game.seed1 && eg.seed2 === game.seed2) ||
+              (eg.seed1 === game.seed2 && eg.seed2 === game.seed1)) return true
+        }
+        // Fallback: match by ESPN ID if already known
+        if (game.espn_id && game.espn_id === eg.id) return true
+        // Fallback: name matching
         return (namesMatch(eg.team1, game.team1) && namesMatch(eg.team2, game.team2)) ||
                (namesMatch(eg.team1, game.team2) && namesMatch(eg.team2, game.team1))
       })
