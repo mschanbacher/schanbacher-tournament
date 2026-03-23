@@ -112,11 +112,25 @@ export async function GET(request) {
       }
     }
 
+    // Auto-advance current_round when a round completes
+    let highestCompleteRound = 0
+    for (let r = 1; r <= 6; r++) {
+      const rGames = rounds[r] || []
+      if (rGames.length > 0 && rGames.every(g => g.status === 'final')) {
+        highestCompleteRound = r
+      } else {
+        break
+      }
+    }
+    if (highestCompleteRound > tournament.current_round) {
+      await supabase.from('tournaments').update({ current_round: highestCompleteRound }).eq('year', year)
+    }
+
     const debug = {}
     for (const [rnd, games] of Object.entries(rounds)) {
       debug[`round_${rnd}`] = { total: games.length, final: games.filter(g => g.status === 'final').length, hasRegion: games.filter(g => g.regions?.name).length }
     }
-    return Response.json({ success: true, year, gamesCreated: created, debug, currentRound: tournament.current_round })
+    return Response.json({ success: true, year, gamesCreated: created, debug, currentRound: highestCompleteRound })
   } catch (error) {
     console.error('Advance round error:', error)
     return Response.json({ error: error.message }, { status: 500 })
