@@ -1465,6 +1465,8 @@ function AdminView({activeYear,mob}) {
   // New season state
   const [newYear, setNewYear] = useState("");
   const [newRegions, setNewRegions] = useState("East,West,Midwest,South");
+  const [ffPair1, setFfPair1] = useState("East,South");
+  const [ffPair2, setFfPair2] = useState("West,Midwest");
   const [roundTimes, setRoundTimes] = useState({
     0: "", // First Four
     1: "", // Round 1
@@ -1583,13 +1585,26 @@ function AdminView({activeYear,mob}) {
     if (!newYear) return;
     // Validate that at least First Four and Round 1 times are set
     if (!roundTimes[0] || !roundTimes[1]) { alert("Please set at least the First Four and Round 1 tipoff times before creating the tournament."); return; }
+    // Validate FF pairings
+    const pair1Regions = ffPair1.split(",").map(r => r.trim()).filter(Boolean);
+    const pair2Regions = ffPair2.split(",").map(r => r.trim()).filter(Boolean);
+    const regionList = newRegions.split(",").map(r => r.trim()).filter(Boolean);
+    if (pair1Regions.length !== 2 || pair2Regions.length !== 2) { alert("Each Final Four pair must have exactly 2 regions."); return; }
+    const allPairRegions = [...pair1Regions, ...pair2Regions];
+    const missingFromPairs = regionList.filter(r => !allPairRegions.includes(r));
+    const extraInPairs = allPairRegions.filter(r => !regionList.includes(r));
+    if (missingFromPairs.length > 0) { alert("These regions are not assigned to a FF pair: " + missingFromPairs.join(", ")); return; }
+    if (extraInPairs.length > 0) { alert("These FF pair regions don't match region names: " + extraInPairs.join(", ")); return; }
     if (!confirm("Create tournament for " + newYear + "?")) return;
     const {supabase} = await import("../lib/supabase");
     const yr = parseInt(newYear);
     await supabase.from("tournaments").insert({year: yr, status: "active", current_round: 0});
-    const regionList = newRegions.split(",").map(r => r.trim());
+    // Build ff_pair lookup: region name → pair number
+    const ffPairMap = {};
+    pair1Regions.forEach(r => ffPairMap[r] = 1);
+    pair2Regions.forEach(r => ffPairMap[r] = 2);
     for (let i = 0; i < regionList.length; i++) {
-      await supabase.from("regions").insert({year: yr, name: regionList[i], position: i + 1});
+      await supabase.from("regions").insert({year: yr, name: regionList[i], position: i + 1, ff_pair: ffPairMap[regionList[i]] || null});
     }
     for (const p of ["TLS","MJS","JRS"]) {
       await supabase.from("season_results").insert({year: yr, player_id: p, total_score: 0});
@@ -1669,6 +1684,16 @@ function AdminView({activeYear,mob}) {
           <input type="number" value={newYear} onChange={e=>setNewYear(e.target.value)} placeholder="Year (e.g. 2027)" style={{...inputStyle,flex:1}}/>
         </div>
         <input type="text" value={newRegions} onChange={e=>setNewRegions(e.target.value)} placeholder="Regions (comma-separated)" style={{...inputStyle,marginBottom:12}}/>
+        <div style={{fontSize:11,fontWeight:600,color:C.textMid,letterSpacing:1,marginBottom:8}}>FINAL FOUR PAIRINGS (which region winners play each other)</div>
+        <div style={{display:"flex",gap:8,marginBottom:4}}>
+          <span style={{fontSize:11,color:C.textMid,width:100}}>Pair 1</span>
+          <input type="text" value={ffPair1} onChange={e=>setFfPair1(e.target.value)} placeholder="e.g. East,South" style={{...inputStyle,flex:1}}/>
+        </div>
+        <div style={{display:"flex",gap:8,marginBottom:4}}>
+          <span style={{fontSize:11,color:C.textMid,width:100}}>Pair 2</span>
+          <input type="text" value={ffPair2} onChange={e=>setFfPair2(e.target.value)} placeholder="e.g. West,Midwest" style={{...inputStyle,flex:1}}/>
+        </div>
+        <div style={{fontSize:10,color:C.textLight,marginTop:4,marginBottom:12}}>Each pair must contain exactly 2 region names matching those above. Winners from paired regions meet in the Final Four.</div>
         <div style={{fontSize:11,fontWeight:600,color:C.textMid,letterSpacing:1,marginBottom:8}}>ROUND SCHEDULE (earliest tipoff per round)</div>
         {[["First Four",0],["Round 1",1],["Round 2",2],["Sweet 16",3],["Elite 8",4],["Final Four",5],["Championship",6]].map(([label,rnd])=>(<div key={rnd} style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
           <span style={{fontSize:11,color:C.textMid,width:100}}>{label}</span>
