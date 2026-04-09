@@ -1500,7 +1500,7 @@ function AdminView({activeYear,mob}) {
 
   const roundNames = ["First Four","Round 1","Round 2","Sweet 16","Elite 8","Final Four","Championship"];
 
-  // Score Override
+  // Score Override — uses full recalculation, not incremental
   const handleScoreUpdate = async () => {
     if (!selectedGame || !score1 || !score2) return;
     const g = games.find(x => x.id === parseInt(selectedGame));
@@ -1509,24 +1509,46 @@ function AdminView({activeYear,mob}) {
     const winner = s1 > s2 ? g.team1 : g.team2;
     const {supabase} = await import("../lib/supabase");
     
-    await supabase.from("games").update({score1: s1, score2: s2, winner, status: "final"}).eq("id", g.id);
+    // Step 1: Update game
+    await supabase.from("games").update({score1: s1, score2: s2, winner, status: "final", status_detail: "Final"}).eq("id", g.id);
     
-    // Update picks points
+    // Step 2: Update picks for THIS game
     const roundPts = [1,1,2,3,4,5,6];
     const pts = roundPts[g.round] || 0;
     const {data: picks} = await supabase.from("picks").select("*").eq("game_id", g.id);
     for (const pick of (picks||[])) {
       const earned = pick.picked_team === winner ? pts : 0;
       await supabase.from("picks").update({points_earned: earned}).eq("id", pick.id);
-      if (earned > 0) {
-        const roundCol = ["r1_score","r1_score","r2_score","r3_score","r4_score","r5_score","r6_score"][g.round];
-        const {data: sr} = await supabase.from("season_results").select("*").eq("year", activeYear).eq("player_id", pick.player_id).single();
-        if (sr) {
-          await supabase.from("season_results").update({[roundCol]: (sr[roundCol]||0) + earned, total_score: (sr.total_score||0) + earned}).eq("id", sr.id);
-        }
-      }
     }
-    setMsg(`Updated: ${g.team1} ${s1} - ${g.team2} ${s2}, Winner: ${winner}`);
+
+    // Step 3: Full recalculation of season_results for ALL players this year
+    // This prevents the accumulation bug — always rebuilds from scratch
+    const {data: allGames} = await supabase.from("games").select("id, round").eq("year", activeYear);
+    const gameIds = (allGames||[]).map(x => x.id);
+    let allPicks = [];
+    for (let i = 0; i < gameIds.length; i += 200) {
+      const {data: batch} = await supabase.from("picks").select("*").in("game_id", gameIds.slice(i, i + 200));
+      allPicks = allPicks.concat(batch || []);
+    }
+    // Build round lookup: game_id → round
+    const gameRound = {};
+    for (const gm of (allGames||[])) gameRound[gm.id] = gm.round;
+    // Map round number → season_results column
+    const roundColMap = {0:"r1_score", 1:"r1_score", 2:"r2_score", 3:"r3_score", 4:"r4_score", 5:"r5_score", 6:"r6_score"};
+    // Recalculate per player
+    const {data: seasonRows} = await supabase.from("season_results").select("*").eq("year", activeYear);
+    for (const sr of (seasonRows||[])) {
+      const playerPicks = allPicks.filter(p => p.player_id === sr.player_id);
+      const totals = {r1_score:0, r2_score:0, r3_score:0, r4_score:0, r5_score:0, r6_score:0};
+      for (const p of playerPicks) {
+        const col = roundColMap[gameRound[p.game_id]];
+        if (col && p.points_earned) totals[col] += p.points_earned;
+      }
+      const total_score = Object.values(totals).reduce((a,b) => a+b, 0);
+      await supabase.from("season_results").update({...totals, total_score}).eq("id", sr.id);
+    }
+
+    setMsg(`Updated: ${g.team1} ${s1} - ${g.team2} ${s2}, Winner: ${winner}. Season results recalculated.`);
     setScore1(""); setScore2(""); setSelectedGame(null);
     // Refresh games
     const {data: updated} = await supabase.from("games").select("*, regions(name)").eq("year", activeYear).order("round").order("game_order");

@@ -221,13 +221,19 @@ export async function GET(request) {
     for (const game of games) {
       // Try to match this game to an ESPN game
       const match = espnGames.find(eg => {
-        // Primary: match by seeds (unambiguous for tournament games)
+        // Always check ESPN ID first if we already have it
+        if (game.espn_id && game.espn_id === eg.espnId) return true
+        // For FF and Championship (rounds 5-6), seeds are NOT unique across regions
+        // (e.g., two 1-seeds in the Final Four). Use name matching only.
+        if (game.round >= 5) {
+          return (namesMatch(eg.team1, game.team1) && namesMatch(eg.team2, game.team2)) ||
+                 (namesMatch(eg.team1, game.team2) && namesMatch(eg.team2, game.team1))
+        }
+        // For rounds 0-4: match by seeds (unambiguous within a region/date)
         if (eg.seed1 && eg.seed2 && game.seed1 && game.seed2) {
           if ((eg.seed1 === game.seed1 && eg.seed2 === game.seed2) ||
               (eg.seed1 === game.seed2 && eg.seed2 === game.seed1)) return true
         }
-        // Fallback: match by ESPN ID if already known
-        if (game.espn_id && game.espn_id === eg.id) return true
         // Fallback: name matching
         return (namesMatch(eg.team1, game.team1) && namesMatch(eg.team2, game.team2)) ||
                (namesMatch(eg.team1, game.team2) && namesMatch(eg.team2, game.team1))
