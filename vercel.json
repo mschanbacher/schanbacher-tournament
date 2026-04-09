@@ -8,6 +8,9 @@
     },
     "app/api/backfill-espn/route.js": {
       "maxDuration": 60
+    },
+    "app/api/test-advance-round/route.js": {
+      "maxDuration": 60
     }
   }
 }
