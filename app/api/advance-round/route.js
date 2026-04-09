@@ -56,13 +56,13 @@ export async function GET(request) {
     }
 
     // Build region lookup maps
-    const regionById = {}    // region_id → { name, position }
+    const regionById = {}    // region_id → { name, position, ff_pair }
     const regionByPos = {}   // position → region_id
     for (const r of (regions || [])) {
-      regionById[r.id] = { name: r.name, position: r.position }
+      regionById[r.id] = { name: r.name, position: r.position, ff_pair: r.ff_pair }
       regionByPos[r.position] = r.id
     }
-    log.push(`Regions: ${(regions || []).map(r => `${r.position}:${r.name}`).join(', ')}`)
+    log.push(`Regions: ${(regions || []).map(r => `${r.position}:${r.name} (ff_pair:${r.ff_pair})`).join(', ')}`)
 
     // ── Step 4: Group games by round ───────────────────────────────
     const rounds = {}
@@ -188,7 +188,8 @@ export async function GET(request) {
 
       } else if (nextRnd === 5) {
         // ── Final Four ─────────────────────────────────────────
-        // Pair by region bracket position: pos 1 vs pos 2, pos 3 vs pos 4
+        // Pair by ff_pair column on regions (set during bracket setup)
+        // Each ff_pair group (1, 2) produces one FF semifinal game
         const e8Winners = []
         for (const g of currentRoundGames) {
           if (!g.winner) {
@@ -201,59 +202,89 @@ export async function GET(request) {
             errors.push(`E8 game ${g.id} has region_id ${g.region_id} which doesn't match any region`)
             continue
           }
+          if (!regionInfo.ff_pair) {
+            errors.push(`Region ${regionInfo.name} has no ff_pair set — cannot create Final Four pairings`)
+            continue
+          }
           e8Winners.push({
             winner: g.winner,
             seed: winnerSeed,
             regionPosition: regionInfo.position,
             regionName: regionInfo.name,
+            ffPair: regionInfo.ff_pair,
           })
         }
-
-        // Sort by region position to ensure correct NCAA pairing
-        e8Winners.sort((a, b) => a.regionPosition - b.regionPosition)
 
         if (e8Winners.length !== 4) {
           errors.push(`Expected 4 E8 winners, got ${e8Winners.length} — cannot create Final Four`)
         } else {
-          // NCAA standard: position 1 vs position 2 (game 0), position 3 vs position 4 (game 1)
-          const ffPairs = [
-            { game_order: 0, team1: e8Winners[0], team2: e8Winners[1] },
-            { game_order: 1, team1: e8Winners[2], team2: e8Winners[3] },
-          ]
+          // Group by ff_pair
+          const pairGroups = {}
+          for (const w of e8Winners) {
+            if (!pairGroups[w.ffPair]) pairGroups[w.ffPair] = []
+            pairGroups[w.ffPair].push(w)
+          }
 
-          for (const pair of ffPairs) {
-            const newGame = {
-              year,
-              region_id: null,
-              round: 5,
-              game_order: pair.game_order,
-              seed1: pair.team1.seed,
-              team1: pair.team1.winner,
-              seed2: pair.team2.seed,
-              team2: pair.team2.winner,
-              status: 'pending',
-              tipoff_time: tipoff,
+          const pairKeys = Object.keys(pairGroups).sort((a, b) => parseInt(a) - parseInt(b))
+
+          if (pairKeys.length !== 2) {
+            errors.push(`Expected 2 ff_pair groups, got ${pairKeys.length} — check regions.ff_pair values`)
+          } else {
+            // Validate each group has exactly 2 teams
+            let pairValid = true
+            for (const key of pairKeys) {
+              if (pairGroups[key].length !== 2) {
+                errors.push(`ff_pair ${key} has ${pairGroups[key].length} teams — expected 2`)
+                pairValid = false
+              }
+              // Sort within pair by region position for consistent team1/team2 ordering
+              pairGroups[key].sort((a, b) => a.regionPosition - b.regionPosition)
             }
 
-            const label = `FF game ${pair.game_order}: (${pair.team1.seed}) ${pair.team1.winner} [${pair.team1.regionName}] vs (${pair.team2.seed}) ${pair.team2.winner} [${pair.team2.regionName}]`
-
-            if (debugMode) {
-              created.push(`[DRY RUN] ${label}`)
+            if (!pairValid) {
+              errors.push('Invalid ff_pair grouping — cannot create Final Four')
             } else {
-              const { error: insertError } = await supabase.from('games').insert(newGame)
-              if (insertError) {
-                if (insertError.code === '23505') {
-                  log.push(`FF game ${pair.game_order}: already exists, skipping`)
-                } else {
-                  errors.push(`Failed to insert FF game: ${insertError.message}`)
+              // Create one FF game per pair group
+              const ffPairs = pairKeys.map((key, idx) => ({
+                game_order: idx,
+                team1: pairGroups[key][0],
+                team2: pairGroups[key][1],
+              }))
+
+              for (const pair of ffPairs) {
+                const newGame = {
+                  year,
+                  region_id: null,
+                  round: 5,
+                  game_order: pair.game_order,
+                  seed1: pair.team1.seed,
+                  team1: pair.team1.winner,
+                  seed2: pair.team2.seed,
+                  team2: pair.team2.winner,
+                  status: 'pending',
+                  tipoff_time: tipoff,
                 }
-              } else {
-                created.push(label)
+
+                const label = `FF game ${pair.game_order}: (${pair.team1.seed}) ${pair.team1.winner} [${pair.team1.regionName}] vs (${pair.team2.seed}) ${pair.team2.winner} [${pair.team2.regionName}]`
+
+                if (debugMode) {
+                  created.push(`[DRY RUN] ${label}`)
+                } else {
+                  const { error: insertError } = await supabase.from('games').insert(newGame)
+                  if (insertError) {
+                    if (insertError.code === '23505') {
+                      log.push(`FF game ${pair.game_order}: already exists, skipping`)
+                    } else {
+                      errors.push(`Failed to insert FF game: ${insertError.message}`)
+                    }
+                  } else {
+                    created.push(label)
+                  }
+                }
               }
             }
           }
         }
-
       } else if (nextRnd === 6) {
         // ── Championship ───────────────────────────────────────
         const ffWinners = currentRoundGames
