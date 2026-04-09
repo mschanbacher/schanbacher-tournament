@@ -90,7 +90,7 @@ const EXPECTED_R2 = {
     { game_order: 3, seed1: 7, team1: 'Kentucky',       seed2: 2,  team2: 'Iowa State',     winner: 'Iowa State' },
   ],
   'South': [
-    { game_order: 0, seed1: 9, team1: 'Iowa',           seed2: 1,  team2: 'Florida',        winner: 'Iowa' },
+    { game_order: 0, seed1: 1, team1: 'Florida',        seed2: 9,  team2: 'Iowa',           winner: 'Iowa' },
     { game_order: 1, seed1: 5, team1: 'Vanderbilt',     seed2: 4,  team2: 'Nebraska',       winner: 'Nebraska' },
     { game_order: 2, seed1: 11,team1: 'VCU',            seed2: 3,  team2: 'Illinois',       winner: 'Illinois' },
     { game_order: 3, seed1: 10,team1: 'Texas A&M',      seed2: 2,  team2: 'Houston',        winner: 'Houston' },
