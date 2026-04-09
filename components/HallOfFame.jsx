@@ -1,0 +1,35 @@
+import { useState, useCallback } from "react";
+import { fetchBracketForYear } from "../lib/queries";
+import { C, RN, RMAX, PLAYERS_ALL } from "../lib/theme";
+import { Lbl, Loading } from "../lib/ui";
+import BracketDisplay from "./BracketDisplay";
+
+export default function HallOfFame({ seasonResults, tournaments, currentPlayer, mob }) {
+  const[selYear,setSelYear]=useState(null);const[selView,setSelView]=useState("scores");
+  const[bracket,setBracket]=useState(null);const[bracketLoading,setBracketLoading]=useState(false);
+  const years=[...new Set((seasonResults||[]).map(r=>r.year))].sort((a,b)=>b-a);
+  const loadBracket=useCallback((year)=>{setBracketLoading(true);fetchBracketForYear(year).then(b=>{setBracket(b);setBracketLoading(false);}).catch(e=>{console.error(e);setBracketLoading(false);});},[]);
+  if(selYear){
+    const yearResults=(seasonResults||[]).filter(r=>r.year===selYear).sort((a,b)=>b.total_score-a.total_score);
+    const tourney=tournaments?.find(t=>t.year===selYear);
+    return(<div style={{padding:mob?"20px 16px":"32px 40px",maxWidth:selView==="bracket"?1200:960,margin:"0 auto"}}>
+      <button onClick={()=>{setSelYear(null);setBracket(null);}} style={{background:"none",border:`1px solid ${C.border}`,color:C.textMid,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit",letterSpacing:1,marginBottom:24}}>Back</button>
+      <div style={{display:"flex",alignItems:"baseline",gap:16,marginBottom:8}}><h2 style={{fontSize:36,color:C.text,margin:0,fontWeight:700,lineHeight:1}}>{selYear}</h2>{tourney?.champion_player&&<span style={{fontSize:13,color:C.textMid}}>Champion: <span style={{fontWeight:700,color:C[tourney.champion_player]||C.text}}>{tourney.champion_player}</span></span>}</div>
+      <div style={{display:"flex",gap:0,marginBottom:24,borderBottom:`1px solid ${C.border}`}}>
+        <button onClick={()=>setSelView("scores")} style={{background:"none",border:"none",borderBottom:selView==="scores"?`2px solid ${C.text}`:"2px solid transparent",color:selView==="scores"?C.text:C.textLight,padding:"8px 16px",cursor:"pointer",fontSize:11,fontWeight:600,letterSpacing:1,textTransform:"uppercase",fontFamily:"inherit",marginBottom:-1}}>Scores</button>
+        <button onClick={()=>{setSelView("bracket");if(!bracket)loadBracket(selYear);}} style={{background:"none",border:"none",borderBottom:selView==="bracket"?`2px solid ${C.text}`:"2px solid transparent",color:selView==="bracket"?C.text:C.textLight,padding:"8px 16px",cursor:"pointer",fontSize:11,fontWeight:600,letterSpacing:1,textTransform:"uppercase",fontFamily:"inherit",marginBottom:-1}}>Bracket</button>
+      </div>
+      {selView==="scores"?(<>{yearResults.map((pl,i)=>(<div key={pl.player_id} style={{display:"flex",alignItems:"baseline",padding:"10px 0",borderBottom:`1px solid ${C.borderLight}`}}><span style={{width:24,fontSize:12,color:C.textLight}}>{i+1}.</span><span style={{width:48,fontSize:14,fontWeight:700,color:C[pl.player_id]||C.text,letterSpacing:1}}>{pl.player_id}</span><div style={{flex:1,height:4,background:C.borderLight,marginRight:16}}><div style={{height:"100%",width:`${(pl.total_score/124)*100}%`,background:C[pl.player_id]||C.text,opacity:0.5}}/></div><span style={{fontSize:20,fontWeight:700,color:i===0?C.text:C.textMid,fontVariantNumeric:"tabular-nums"}}>{pl.total_score}</span></div>))}<table style={{width:"100%",borderCollapse:"collapse",marginTop:24}}><thead><tr style={{borderBottom:`2px solid ${C.text}`}}><th style={{textAlign:"left",padding:"6px 0",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>PLAYER</th>{RN.map(r=><th key={r} style={{textAlign:"right",padding:"6px 6px",fontSize:9,color:C.textLight,letterSpacing:1,fontWeight:600}}>{r.toUpperCase()}</th>)}<th style={{textAlign:"right",padding:"6px 0",fontSize:10,color:C.text,fontWeight:700}}>TOTAL</th></tr></thead><tbody>{yearResults.map((pl,pi)=>{const rounds=[pl.r1_score,pl.r2_score,pl.r3_score,pl.r4_score,pl.r5_score,pl.r6_score];return(<tr key={pl.player_id} style={{borderBottom:`1px solid ${C.borderLight}`}}><td style={{padding:"8px 0",fontWeight:700,fontSize:13,color:C[pl.player_id]||C.text,letterSpacing:1}}>{pl.player_id}</td>{rounds.map((v,i)=><td key={i} style={{textAlign:"right",padding:"8px 6px",fontSize:13,fontVariantNumeric:"tabular-nums",color:v==null?C.textLight:v===RMAX[i]?C.correct:v===0?C.textLight:C.text,fontWeight:v===RMAX[i]?700:400}}>{v??0}</td>)}<td style={{textAlign:"right",padding:"8px 0",fontSize:16,fontWeight:700,color:pi===0?C.text:C.textMid}}>{pl.total_score}</td></tr>);})}</tbody></table></>):(bracketLoading?<Loading/>:bracket?<BracketDisplay bracket={bracket} currentPlayer={currentPlayer}/>:<div style={{color:C.textLight,padding:20}}>Loading bracket...</div>)}
+    </div>);
+  }
+  return(<div style={{padding:mob?"20px 16px":"32px 40px",maxWidth:960,margin:"0 auto"}}>
+    <div style={{marginBottom:32}}><Lbl>{years.length} Tournaments</Lbl><h2 style={{fontSize:28,color:C.text,margin:"4px 0",fontWeight:700,lineHeight:1}}>History</h2></div>
+    <table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr style={{borderBottom:`2px solid ${C.text}`}}><th style={{textAlign:"left",padding:"6px 0",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600,width:60}}>YEAR</th><th style={{textAlign:"left",padding:"6px 0",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>CHAMPION</th>{PLAYERS_ALL.map(p=><th key={p} style={{textAlign:"right",padding:"6px 8px",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>{p}</th>)}<th style={{textAlign:"right",padding:"6px 0",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>MARGIN</th></tr></thead>
+    <tbody>{years.map(year=>{const yr=(seasonResults||[]).filter(r=>r.year===year).sort((a,b)=>b.total_score-a.total_score);const tourney=tournaments?.find(t=>t.year===year);const w=tourney?.champion_player||yr[0]?.player_id;const margin=yr.length>1?yr[0].total_score-yr[1].total_score:"—";const isActive=tourney?.status==='active';return(<tr key={year} style={{borderBottom:`1px solid ${C.borderLight}`,cursor:"pointer"}} onMouseEnter={e=>e.currentTarget.style.background="#f0ede7"} onMouseLeave={e=>e.currentTarget.style.background=""} onClick={()=>{setSelYear(year);setSelView("scores");setBracket(null);}}>
+      <td style={{padding:"10px 0",fontSize:14,fontWeight:700,color:C.text,fontVariantNumeric:"tabular-nums"}}>{year}{isActive&&<span style={{fontSize:9,color:C.textMid,marginLeft:6}}>LIVE</span>}</td>
+      <td style={{padding:"10px 0",fontSize:13,fontWeight:700,color:isActive?C.textLight:C[w]||C.text,letterSpacing:1}}>{isActive?"—":w}</td>
+      {PLAYERS_ALL.map(p=>{const pd=yr.find(r=>r.player_id===p);return(<td key={p} style={{textAlign:"right",padding:"10px 8px",fontSize:13,fontVariantNumeric:"tabular-nums",fontWeight:pd?.player_id===w&&!isActive?700:400,color:pd?(pd.player_id===w&&!isActive?C.text:C.textMid):C.textLight}}>{pd?pd.total_score:"—"}</td>);})}
+      <td style={{textAlign:"right",padding:"10px 0",fontSize:13,color:C.textLight,fontVariantNumeric:"tabular-nums"}}>{isActive?"—":margin}</td>
+    </tr>);})}</tbody></table>
+  </div>);
+}

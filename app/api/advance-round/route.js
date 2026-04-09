@@ -1,9 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-)
+import { supabase } from '../../../lib/supabase'
 
 // Expected game counts per round (standard 68-team NCAA bracket)
 const EXPECTED_GAMES = { 0: 4, 1: 32, 2: 16, 3: 8, 4: 4, 5: 2, 6: 1 }
