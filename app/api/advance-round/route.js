@@ -5,33 +5,90 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 )
 
+// Expected game counts per round (standard 68-team NCAA bracket)
+const EXPECTED_GAMES = { 0: 4, 1: 32, 2: 16, 3: 8, 4: 4, 5: 2, 6: 1 }
+
+// Round labels for logging
+const ROUND_NAMES = ['First Four', 'Round 1', 'Round 2', 'Sweet 16', 'Elite 8', 'Final Four', 'Championship']
+
 export async function GET(request) {
+  const url = new URL(request.url)
+  const debugMode = url.searchParams.get('debug') === 'true'
+  const log = [] // Collect diagnostic messages
+
   try {
-    const { data: tournament } = await supabase
+    // ── Step 1: Get the active tournament ───────────────────────────
+    const { data: tournament, error: tournamentError } = await supabase
       .from('tournaments')
       .select('*')
       .eq('status', 'active')
       .single()
-    
-    if (!tournament) return Response.json({ message: 'No active tournament' })
-    const year = tournament.year
 
-    // Get all games for this year
-    const { data: allGames } = await supabase
+    if (tournamentError || !tournament) {
+      return Response.json({ success: false, message: 'No active tournament', error: tournamentError?.message })
+    }
+    const year = tournament.year
+    log.push(`Active tournament: ${year}, current_round: ${tournament.current_round}`)
+
+    // ── Step 2: Fetch ALL games for this year (NO joins) ───────────
+    const { data: allGames, error: gamesError } = await supabase
       .from('games')
-      .select('*, regions(name)')
+      .select('*')
       .eq('year', year)
       .order('round')
+      .order('region_id')
       .order('game_order')
 
-    // Find the highest round that is fully complete
+    if (gamesError) {
+      return Response.json({ success: false, message: 'Failed to fetch games', error: gamesError.message })
+    }
+    log.push(`Total games fetched: ${(allGames || []).length}`)
+
+    // ── Step 3: Fetch regions for this year (separate query) ───────
+    const { data: regions, error: regionsError } = await supabase
+      .from('regions')
+      .select('*')
+      .eq('year', year)
+      .order('position')
+
+    if (regionsError) {
+      return Response.json({ success: false, message: 'Failed to fetch regions', error: regionsError.message })
+    }
+
+    // Build region lookup maps
+    const regionById = {}    // region_id → { name, position }
+    const regionByPos = {}   // position → region_id
+    for (const r of (regions || [])) {
+      regionById[r.id] = { name: r.name, position: r.position }
+      regionByPos[r.position] = r.id
+    }
+    log.push(`Regions: ${(regions || []).map(r => `${r.position}:${r.name}`).join(', ')}`)
+
+    // ── Step 4: Group games by round ───────────────────────────────
     const rounds = {}
-    for (const g of allGames) {
+    for (const g of (allGames || [])) {
       if (!rounds[g.round]) rounds[g.round] = []
       rounds[g.round].push(g)
     }
 
-    // Get tipoff times for future rounds from the round_schedule table
+    // Build round status summary
+    const roundStatus = {}
+    for (let r = 0; r <= 6; r++) {
+      const games = rounds[r] || []
+      const finalCount = games.filter(g => g.status === 'final').length
+      const expected = EXPECTED_GAMES[r]
+      roundStatus[r] = {
+        name: ROUND_NAMES[r],
+        total: games.length,
+        final: finalCount,
+        expected,
+        complete: games.length === expected && finalCount === expected,
+        exists: games.length > 0,
+      }
+      log.push(`Round ${r} (${ROUND_NAMES[r]}): ${games.length} games, ${finalCount} final, ${expected} expected → ${roundStatus[r].complete ? 'COMPLETE' : roundStatus[r].exists ? 'IN PROGRESS' : 'NOT CREATED'}`)
+    }
+
+    // ── Step 5: Fetch round schedule for tipoff times ──────────────
     const { data: schedule } = await supabase
       .from('round_schedule')
       .select('*')
@@ -39,100 +96,254 @@ export async function GET(request) {
     const scheduleMap = {}
     for (const s of (schedule || [])) scheduleMap[s.round] = s.tipoff_time
 
-    let created = []
+    // ── Step 6: Create next-round games where needed ───────────────
+    // We skip round 0 entirely — FF→R1 is handled by update-scores
+    const created = []
+    const errors = []
 
-    for (let rnd = 0; rnd <= 5; rnd++) {
-      const currentRound = rounds[rnd] || []
-      if (currentRound.length === 0) continue
-      
-      const allFinal = currentRound.every(g => g.status === 'final')
-      if (!allFinal) continue
+    for (let rnd = 1; rnd <= 5; rnd++) {
+      const nextRnd = rnd + 1
 
-      const nextRnd = rnd === 0 ? 1 : rnd + 1
-      if (rnd === 0) continue // First Four → R1 handled by update-scores route
-      
-      const nextRoundGames = rounds[nextRnd] || []
-      if (nextRoundGames.length > 0) continue
-
-      const tipoff = scheduleMap[nextRnd] || null
-
-      // Get winners from current round, grouped by region
-      const regionWinners = {}
-      for (const g of currentRound) {
-        const regionName = g.regions?.name || 'none'
-        if (!regionWinners[regionName]) regionWinners[regionName] = []
-        const winnerSeed = g.winner === g.team1 ? g.seed1 : g.seed2
-        regionWinners[regionName].push({ winner: g.winner, seed: winnerSeed, region_id: g.region_id, order: g.game_order })
+      // Is this round complete?
+      if (!roundStatus[rnd].complete) {
+        log.push(`Round ${rnd}: not complete, skipping`)
+        continue
       }
 
+      // Do next-round games already exist?
+      if (roundStatus[nextRnd].exists) {
+        log.push(`Round ${nextRnd}: already has ${roundStatus[nextRnd].total} games, skipping creation`)
+        continue
+      }
+
+      log.push(`Round ${rnd} is complete, creating round ${nextRnd} (${ROUND_NAMES[nextRnd]}) games...`)
+
+      const currentRoundGames = rounds[rnd]
+      const tipoff = scheduleMap[nextRnd] || null
+
       if (nextRnd <= 4) {
-        for (const [regionName, winners] of Object.entries(regionWinners)) {
-          if (regionName === 'none') continue
-          winners.sort((a, b) => a.order - b.order)
-          for (let i = 0; i < winners.length - 1; i += 2) {
-            const { error } = await supabase.from('games').insert({
-              year, region_id: winners[i].region_id,
-              round: nextRnd, game_order: Math.floor(i / 2),
-              seed1: winners[i].seed, team1: winners[i].winner,
-              seed2: winners[i + 1].seed, team2: winners[i + 1].winner,
-              status: 'pending', tipoff_time: tipoff
-            })
-            if (!error) created.push(`R${nextRnd}: ${winners[i].winner} vs ${winners[i+1].winner}`)
+        // ── Region-based rounds (R2, S16, E8) ──────────────────
+        // Group winners by region_id
+        const winnersByRegion = {}
+        for (const g of currentRoundGames) {
+          if (!g.winner) {
+            errors.push(`Round ${rnd} game ${g.id} is final but has no winner`)
+            continue
+          }
+          if (!g.region_id) {
+            errors.push(`Round ${rnd} game ${g.id} has no region_id — cannot create region-based next-round game`)
+            continue
+          }
+          if (!winnersByRegion[g.region_id]) winnersByRegion[g.region_id] = []
+          const winnerSeed = g.winner === g.team1 ? g.seed1 : g.seed2
+          winnersByRegion[g.region_id].push({
+            winner: g.winner,
+            seed: winnerSeed,
+            region_id: g.region_id,
+            game_order: g.game_order,
+          })
+        }
+
+        for (const [regionId, winners] of Object.entries(winnersByRegion)) {
+          // Sort by game_order to ensure correct pairing
+          winners.sort((a, b) => a.game_order - b.game_order)
+          const regionName = regionById[regionId]?.name || `region_${regionId}`
+
+          if (winners.length % 2 !== 0) {
+            errors.push(`${regionName}: odd number of winners (${winners.length}) — cannot pair`)
+            continue
+          }
+
+          for (let i = 0; i < winners.length; i += 2) {
+            const newGame = {
+              year,
+              region_id: parseInt(regionId),
+              round: nextRnd,
+              game_order: Math.floor(i / 2),
+              seed1: winners[i].seed,
+              team1: winners[i].winner,
+              seed2: winners[i + 1].seed,
+              team2: winners[i + 1].winner,
+              status: 'pending',
+              tipoff_time: tipoff,
+            }
+
+            if (debugMode) {
+              created.push(`[DRY RUN] R${nextRnd} ${regionName}: (${newGame.seed1}) ${newGame.team1} vs (${newGame.seed2}) ${newGame.team2}`)
+            } else {
+              const { error: insertError } = await supabase.from('games').insert(newGame)
+              if (insertError) {
+                // Check if it's a duplicate (unique constraint violation)
+                if (insertError.code === '23505') {
+                  log.push(`R${nextRnd} ${regionName} game_order ${Math.floor(i / 2)}: already exists (unique constraint), skipping`)
+                } else {
+                  errors.push(`Failed to insert R${nextRnd} ${regionName} game: ${insertError.message}`)
+                }
+              } else {
+                created.push(`R${nextRnd} ${regionName}: (${newGame.seed1}) ${newGame.team1} vs (${newGame.seed2}) ${newGame.team2}`)
+              }
+            }
           }
         }
+
       } else if (nextRnd === 5) {
-        const e8Data = currentRound.map(g => ({ winner: g.winner, seed: g.winner === g.team1 ? g.seed1 : g.seed2 })).filter(d => d.winner)
-        if (e8Data.length === 4) {
-          await supabase.from('games').insert({
-            year, region_id: null, round: 5, game_order: 0,
-            seed1: e8Data[0].seed, team1: e8Data[0].winner,
-            seed2: e8Data[1].seed, team2: e8Data[1].winner,
-            status: 'pending', tipoff_time: tipoff
+        // ── Final Four ─────────────────────────────────────────
+        // Pair by region bracket position: pos 1 vs pos 2, pos 3 vs pos 4
+        const e8Winners = []
+        for (const g of currentRoundGames) {
+          if (!g.winner) {
+            errors.push(`E8 game ${g.id} is final but has no winner`)
+            continue
+          }
+          const winnerSeed = g.winner === g.team1 ? g.seed1 : g.seed2
+          const regionInfo = regionById[g.region_id]
+          if (!regionInfo) {
+            errors.push(`E8 game ${g.id} has region_id ${g.region_id} which doesn't match any region`)
+            continue
+          }
+          e8Winners.push({
+            winner: g.winner,
+            seed: winnerSeed,
+            regionPosition: regionInfo.position,
+            regionName: regionInfo.name,
           })
-          await supabase.from('games').insert({
-            year, region_id: null, round: 5, game_order: 1,
-            seed1: e8Data[2].seed, team1: e8Data[2].winner,
-            seed2: e8Data[3].seed, team2: e8Data[3].winner,
-            status: 'pending', tipoff_time: tipoff
-          })
-          created.push(`FF: ${e8Data[0].winner} vs ${e8Data[1].winner}`)
-          created.push(`FF: ${e8Data[2].winner} vs ${e8Data[3].winner}`)
         }
+
+        // Sort by region position to ensure correct NCAA pairing
+        e8Winners.sort((a, b) => a.regionPosition - b.regionPosition)
+
+        if (e8Winners.length !== 4) {
+          errors.push(`Expected 4 E8 winners, got ${e8Winners.length} — cannot create Final Four`)
+        } else {
+          // NCAA standard: position 1 vs position 2 (game 0), position 3 vs position 4 (game 1)
+          const ffPairs = [
+            { game_order: 0, team1: e8Winners[0], team2: e8Winners[1] },
+            { game_order: 1, team1: e8Winners[2], team2: e8Winners[3] },
+          ]
+
+          for (const pair of ffPairs) {
+            const newGame = {
+              year,
+              region_id: null,
+              round: 5,
+              game_order: pair.game_order,
+              seed1: pair.team1.seed,
+              team1: pair.team1.winner,
+              seed2: pair.team2.seed,
+              team2: pair.team2.winner,
+              status: 'pending',
+              tipoff_time: tipoff,
+            }
+
+            const label = `FF game ${pair.game_order}: (${pair.team1.seed}) ${pair.team1.winner} [${pair.team1.regionName}] vs (${pair.team2.seed}) ${pair.team2.winner} [${pair.team2.regionName}]`
+
+            if (debugMode) {
+              created.push(`[DRY RUN] ${label}`)
+            } else {
+              const { error: insertError } = await supabase.from('games').insert(newGame)
+              if (insertError) {
+                if (insertError.code === '23505') {
+                  log.push(`FF game ${pair.game_order}: already exists, skipping`)
+                } else {
+                  errors.push(`Failed to insert FF game: ${insertError.message}`)
+                }
+              } else {
+                created.push(label)
+              }
+            }
+          }
+        }
+
       } else if (nextRnd === 6) {
-        const ffData = currentRound.map(g => ({ winner: g.winner, seed: g.winner === g.team1 ? g.seed1 : g.seed2 })).filter(d => d.winner)
-        if (ffData.length === 2) {
-          await supabase.from('games').insert({
-            year, region_id: null, round: 6, game_order: 0,
-            seed1: ffData[0].seed, team1: ffData[0].winner,
-            seed2: ffData[1].seed, team2: ffData[1].winner,
-            status: 'pending', tipoff_time: tipoff
-          })
-          created.push(`CH: ${ffData[0].winner} vs ${ffData[1].winner}`)
+        // ── Championship ───────────────────────────────────────
+        const ffWinners = currentRoundGames
+          .filter(g => g.winner)
+          .sort((a, b) => a.game_order - b.game_order)
+          .map(g => ({
+            winner: g.winner,
+            seed: g.winner === g.team1 ? g.seed1 : g.seed2,
+          }))
+
+        if (ffWinners.length !== 2) {
+          errors.push(`Expected 2 FF winners, got ${ffWinners.length} — cannot create Championship`)
+        } else {
+          const newGame = {
+            year,
+            region_id: null,
+            round: 6,
+            game_order: 0,
+            seed1: ffWinners[0].seed,
+            team1: ffWinners[0].winner,
+            seed2: ffWinners[1].seed,
+            team2: ffWinners[1].winner,
+            status: 'pending',
+            tipoff_time: tipoff,
+          }
+
+          const label = `Championship: (${ffWinners[0].seed}) ${ffWinners[0].winner} vs (${ffWinners[1].seed}) ${ffWinners[1].winner}`
+
+          if (debugMode) {
+            created.push(`[DRY RUN] ${label}`)
+          } else {
+            const { error: insertError } = await supabase.from('games').insert(newGame)
+            if (insertError) {
+              if (insertError.code === '23505') {
+                log.push(`Championship game: already exists, skipping`)
+              } else {
+                errors.push(`Failed to insert Championship game: ${insertError.message}`)
+              }
+            } else {
+              created.push(label)
+            }
+          }
         }
       }
     }
 
-    // Auto-advance current_round when a round completes
-    let highestCompleteRound = 0
+    // ── Step 7: Update current_round (independent of game creation) ─
+    // Find the highest round where all expected games exist and are final
+    // Start at round 1 — round 0 (First Four) is managed by update-scores
+    let highestCompleteRound = tournament.current_round
     for (let r = 1; r <= 6; r++) {
-      const rGames = rounds[r] || []
-      if (rGames.length > 0 && rGames.every(g => g.status === 'final')) {
+      if (roundStatus[r].complete) {
         highestCompleteRound = r
       } else {
         break
       }
     }
-    if (highestCompleteRound > tournament.current_round) {
-      await supabase.from('tournaments').update({ current_round: highestCompleteRound }).eq('year', year)
+
+    if (!debugMode && highestCompleteRound !== tournament.current_round) {
+      const { error: updateError } = await supabase
+        .from('tournaments')
+        .update({ current_round: highestCompleteRound })
+        .eq('year', year)
+
+      if (updateError) {
+        errors.push(`Failed to update current_round: ${updateError.message}`)
+      } else {
+        log.push(`Updated current_round: ${tournament.current_round} → ${highestCompleteRound}`)
+      }
+    } else if (debugMode && highestCompleteRound !== tournament.current_round) {
+      log.push(`[DRY RUN] Would update current_round: ${tournament.current_round} → ${highestCompleteRound}`)
+    } else {
+      log.push(`current_round unchanged at ${tournament.current_round}`)
     }
 
-    const debug = {}
-    for (const [rnd, games] of Object.entries(rounds)) {
-      debug[`round_${rnd}`] = { total: games.length, final: games.filter(g => g.status === 'final').length, hasRegion: games.filter(g => g.regions?.name).length }
-    }
-    return Response.json({ success: true, year, gamesCreated: created, debug, currentRound: highestCompleteRound })
+    // ── Step 8: Return response ────────────────────────────────────
+    return Response.json({
+      success: true,
+      debugMode,
+      year,
+      currentRound: debugMode ? tournament.current_round : highestCompleteRound,
+      gamesCreated: created,
+      errors: errors.length > 0 ? errors : undefined,
+      roundStatus,
+      log: debugMode ? log : undefined,
+      timestamp: new Date().toISOString(),
+    })
+
   } catch (error) {
     console.error('Advance round error:', error)
-    return Response.json({ error: error.message }, { status: 500 })
+    return Response.json({ success: false, error: error.message, stack: error.stack }, { status: 500 })
   }
 }
