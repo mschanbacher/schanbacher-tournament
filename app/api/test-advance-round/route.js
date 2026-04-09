@@ -375,7 +375,24 @@ export async function GET(request) {
 
     // ── Cleanup ─────────────────────────────────────────────────
     await cleanup()
-    record('Cleanup', true, 'All test data removed')
+
+    // Verify cleanup — confirm zero rows remain for year 9999
+    const { data: remTournaments } = await supabase.from('tournaments').select('year').eq('year', TEST_YEAR)
+    const { data: remRegions } = await supabase.from('regions').select('id').eq('year', TEST_YEAR)
+    const { data: remGames } = await supabase.from('games').select('id').eq('year', TEST_YEAR)
+    const { data: remResults } = await supabase.from('season_results').select('id').eq('year', TEST_YEAR)
+    const { data: remSchedule } = await supabase.from('round_schedule').select('id').eq('year', TEST_YEAR)
+    const remaining = {
+      tournaments: (remTournaments || []).length,
+      regions: (remRegions || []).length,
+      games: (remGames || []).length,
+      season_results: (remResults || []).length,
+      round_schedule: (remSchedule || []).length,
+    }
+    const totalRemaining = Object.values(remaining).reduce((a, b) => a + b, 0)
+    record('Cleanup', totalRemaining === 0,
+      totalRemaining === 0 ? 'Verified: all test data removed' :
+      `${totalRemaining} rows remain: ${Object.entries(remaining).filter(([,v]) => v > 0).map(([k,v]) => `${k}:${v}`).join(', ')}`)
 
   } catch (error) {
     record('Unexpected error', false, `${error.message}\n${error.stack}`)
