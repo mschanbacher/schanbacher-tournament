@@ -120,11 +120,15 @@ export async function GET(request) {
         const updateData = { espn_id: match.espnId }
         if (match.startTime) updateData.tipoff_time = match.startTime
         
-        await supabase
+        const { error: updateError } = await supabase
           .from('games')
           .update(updateData)
           .eq('id', game.id)
         
+        if (updateError) {
+          missed++
+          continue
+        }
         matched++
         const idx = allEspnGames.indexOf(match)
         if (idx > -1) allEspnGames.splice(idx, 1)
