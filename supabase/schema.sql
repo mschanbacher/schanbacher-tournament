@@ -90,6 +90,17 @@ CREATE TABLE round_schedule (
   label TEXT                     -- Optional display label
 );
 
+-- First Four → Round 1 mappings (which R1 slot each FF winner feeds into)
+CREATE TABLE first_four_mappings (
+  id SERIAL PRIMARY KEY,
+  year INT REFERENCES tournaments(year),
+  ff_game_order INT NOT NULL,              -- First Four game index (0-3)
+  target_region_id INT REFERENCES regions(id),  -- R1 region the winner goes to
+  target_game_order INT NOT NULL,          -- R1 game_order within that region
+  target_slot INT NOT NULL,                -- 1 = winner becomes team1, 2 = team2
+  UNIQUE(year, ff_game_order)
+);
+
 -- Indexes for common queries
 CREATE INDEX idx_games_year_round ON games(year, round);
 CREATE INDEX idx_picks_game ON picks(game_id);
@@ -104,6 +115,7 @@ ALTER TABLE games ENABLE ROW LEVEL SECURITY;
 ALTER TABLE picks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE season_results ENABLE ROW LEVEL SECURITY;
 ALTER TABLE round_schedule ENABLE ROW LEVEL SECURITY;
+ALTER TABLE first_four_mappings ENABLE ROW LEVEL SECURITY;
 
 -- Allow public read on everything (small family app, no secrets)
 CREATE POLICY "Public read" ON players FOR SELECT USING (true);
@@ -142,3 +154,9 @@ CREATE POLICY "Public delete" ON season_results FOR DELETE USING (true);
 CREATE POLICY "Public insert" ON round_schedule FOR INSERT WITH CHECK (true);
 CREATE POLICY "Public update" ON round_schedule FOR UPDATE USING (true);
 CREATE POLICY "Public delete" ON round_schedule FOR DELETE USING (true);
+
+-- Allow public operations on first_four_mappings
+CREATE POLICY "Public read" ON first_four_mappings FOR SELECT USING (true);
+CREATE POLICY "Public insert" ON first_four_mappings FOR INSERT WITH CHECK (true);
+CREATE POLICY "Public update" ON first_four_mappings FOR UPDATE USING (true);
+CREATE POLICY "Public delete" ON first_four_mappings FOR DELETE USING (true);

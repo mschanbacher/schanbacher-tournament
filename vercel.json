@@ -11,6 +11,9 @@
     },
     "app/api/test-advance-round/route.js": {
       "maxDuration": 60
+    },
+    "app/api/import-bracket/route.js": {
+      "maxDuration": 30
     }
   }
 }

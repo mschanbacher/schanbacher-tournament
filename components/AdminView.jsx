@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { C } from "../lib/theme";
 import { Lbl, Loading } from "../lib/ui";
+import BracketImport from "./BracketImport";
 
 export default function AdminView({ activeYear, mob }) {
   const [games, setGames] = useState([]);
@@ -169,7 +170,12 @@ export default function AdminView({ activeYear, mob }) {
         await supabase.from("round_schedule").insert({year: yr, round: rnd, tipoff_time: new Date(roundTimes[rnd]).toISOString()});
       }
     }
-    setMsg(`Created tournament ${yr} with regions: ${regionList.join(", ")} and round schedule saved. Add games via SQL or future game entry UI.`);
+    setMsg(`Created tournament ${yr} with regions: ${regionList.join(", ")} and round schedule saved. Use "Import Bracket" below to add games.`);
+    // Refresh to show the newly created season
+    const {data: g} = await supabase.from("games").select("*, regions(name)").eq("year", yr).order("round").order("game_order");
+    const {data: r} = await supabase.from("regions").select("*").eq("year", yr).order("position");
+    setGames(g || []);
+    setRegions(r || []);
   };
 
   const pendingGames = games.filter(g => g.status !== "final");
@@ -193,6 +199,24 @@ export default function AdminView({ activeYear, mob }) {
           <button onClick={handleAdvanceRound} style={{...btnStyle,background:C.textMid}}>Advance Round</button>
         </div>
       </div>
+
+      {/* Bracket Import — show when tournament has regions but no games */}
+      {regions.length > 0 && games.length === 0 && (
+        <div style={secStyle}>
+          <BracketImport
+            activeYear={activeYear}
+            regions={regions}
+            mob={mob}
+            onComplete={async () => {
+              const {supabase} = await import("../lib/supabase");
+              const {data: g} = await supabase.from("games").select("*, regions(name)").eq("year", activeYear).order("round").order("game_order");
+              setGames(g || []);
+              setFfGames((g||[]).filter(x=>x.round===0));
+              setR1Games((g||[]).filter(x=>x.round===1));
+            }}
+          />
+        </div>
+      )}
 
       {/* Score Override */}
       <div style={secStyle}>

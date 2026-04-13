@@ -1,19 +1,9 @@
 import { supabase } from '../../../lib/supabase'
 
-import { ALIASES, normalize, stripMascot, namesMatch } from '../../../lib/espn-matching'
+import { namesMatch } from '../../../lib/espn-matching'
 
 // ESPN public scoreboard API
 const ESPN_URL = 'https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard'
-
-
-// First Four placeholder mapping — which R1 games get updated
-const FIRST_FOUR_TO_R1 = {
-  // Map: First Four game_order -> { region, r1_game_order, which_seed (1=team1, 2=team2) }
-  0: { region: 'Midwest', r1_order: 0, slot: 2 },  // UMBC/Howard → Michigan's opponent (seed2)
-  1: { region: 'West', r1_order: 4, slot: 2 },      // Texas/NC State → BYU's opponent (seed2)
-  2: { region: 'South', r1_order: 0, slot: 2 },     // PV A&M/Lehigh → Florida's opponent (seed2)
-  3: { region: 'Midwest', r1_order: 4, slot: 2 },   // Miami(OH)/SMU → Tennessee's opponent (seed2)
-}
 
 async function fetchESPNScores(date) {
   const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '')
@@ -226,36 +216,33 @@ export async function GET(request) {
 
           // Handle First Four → R1 propagation
           if (game.round === 0) {
-            const mapping = FIRST_FOUR_TO_R1[game.game_order]
-            if (mapping) {
-              // Find the R1 game that needs updating
-              const { data: regions, error: regionError } = await supabase
-                .from('regions')
-                .select('id')
-                .eq('year', year)
-                .eq('name', mapping.region)
-                .single()
+            // Look up mapping from first_four_mappings table
+            const { data: mapping, error: mappingError } = await supabase
+              .from('first_four_mappings')
+              .select('*')
+              .eq('year', year)
+              .eq('ff_game_order', game.game_order)
+              .single()
+            
+            if (mappingError) {
+              updates.push(`⚠ No FF→R1 mapping found for FF game_order ${game.game_order}: ${mappingError.message}`)
+            } else if (mapping) {
+              const updateField = mapping.target_slot === 1 ? 'team1' : 'team2'
+              const seedField = mapping.target_slot === 1 ? 'seed1' : 'seed2'
+              const winnerSeed = sc1 > sc2 ? game.seed1 : game.seed2
               
-              if (regionError) {
-                updates.push(`⚠ Failed to find region ${mapping.region} for FF→R1: ${regionError.message}`)
-              } else if (regions) {
-                const updateField = mapping.slot === 1 ? 'team1' : 'team2'
-                const seedField = mapping.slot === 1 ? 'seed1' : 'seed2'
-                const winnerSeed = sc1 > sc2 ? game.seed1 : game.seed2
-                
-                const { error: r1UpdateError } = await supabase
-                  .from('games')
-                  .update({ [updateField]: winner, [seedField]: winnerSeed })
-                  .eq('year', year)
-                  .eq('round', 1)
-                  .eq('game_order', mapping.r1_order)
-                  .eq('region_id', regions.id)
-                
-                if (r1UpdateError) {
-                  updates.push(`⚠ Failed to update R1 game: ${r1UpdateError.message}`)
-                } else {
-                  updates.push(`→ Updated R1: ${mapping.region} game ${mapping.r1_order} ${updateField} = ${winner}`)
-                }
+              const { error: r1UpdateError } = await supabase
+                .from('games')
+                .update({ [updateField]: winner, [seedField]: winnerSeed })
+                .eq('year', year)
+                .eq('round', 1)
+                .eq('game_order', mapping.target_game_order)
+                .eq('region_id', mapping.target_region_id)
+              
+              if (r1UpdateError) {
+                updates.push(`⚠ Failed to update R1 game: ${r1UpdateError.message}`)
+              } else {
+                updates.push(`→ Updated R1: region ${mapping.target_region_id} game ${mapping.target_game_order} ${updateField} = ${winner}`)
               }
             }
           }
