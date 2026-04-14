@@ -1,14 +1,14 @@
 import { useState, useCallback } from "react";
 import { fetchBracketForYear } from "../lib/queries";
-import { C, RN, RMAX, PLAYERS_ALL } from "../lib/theme";
+import { C, RN, RMAX } from "../lib/theme";
 import { Lbl, Loading } from "../lib/ui";
 import BracketDisplay from "./BracketDisplay";
 
-export default function HallOfFame({ seasonResults, tournaments, currentPlayer, mob }) {
+export default function HallOfFame({ seasonResults, tournaments, currentPlayer, mob, players }) {
   const[selYear,setSelYear]=useState(null);const[selView,setSelView]=useState("scores");
   const[bracket,setBracket]=useState(null);const[bracketLoading,setBracketLoading]=useState(false);
   const years=[...new Set((seasonResults||[]).map(r=>r.year))].sort((a,b)=>b-a);
-  const loadBracket=useCallback((year)=>{setBracketLoading(true);fetchBracketForYear(year).then(b=>{setBracket(b);setBracketLoading(false);}).catch(e=>{console.error(e);setBracketLoading(false);});},[]);
+  const loadBracket=useCallback((year)=>{setBracketLoading(true);fetchBracketForYear(year).then(b=>{if(b.players.length===0)b.players=players||[];setBracket(b);setBracketLoading(false);}).catch(e=>{console.error(e);setBracketLoading(false);});},[players]);
   if(selYear){
     const yearResults=(seasonResults||[]).filter(r=>r.year===selYear).sort((a,b)=>b.total_score-a.total_score);
     const tourney=tournaments?.find(t=>t.year===selYear);
@@ -24,11 +24,11 @@ export default function HallOfFame({ seasonResults, tournaments, currentPlayer, 
   }
   return(<div style={{padding:mob?"20px 16px":"32px 40px",maxWidth:960,margin:"0 auto"}}>
     <div style={{marginBottom:32}}><Lbl>{years.length} Tournaments</Lbl><h2 style={{fontSize:28,color:C.text,margin:"4px 0",fontWeight:700,lineHeight:1}}>History</h2></div>
-    <table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr style={{borderBottom:`2px solid ${C.text}`}}><th style={{textAlign:"left",padding:"6px 0",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600,width:60}}>YEAR</th><th style={{textAlign:"left",padding:"6px 0",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>CHAMPION</th>{PLAYERS_ALL.map(p=><th key={p} style={{textAlign:"right",padding:"6px 8px",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>{p}</th>)}<th style={{textAlign:"right",padding:"6px 0",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>MARGIN</th></tr></thead>
+    <table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr style={{borderBottom:`2px solid ${C.text}`}}><th style={{textAlign:"left",padding:"6px 0",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600,width:60}}>YEAR</th><th style={{textAlign:"left",padding:"6px 0",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>CHAMPION</th>{players.map(p=><th key={p} style={{textAlign:"right",padding:"6px 8px",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>{p}</th>)}<th style={{textAlign:"right",padding:"6px 0",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>MARGIN</th></tr></thead>
     <tbody>{years.map(year=>{const yr=(seasonResults||[]).filter(r=>r.year===year).sort((a,b)=>b.total_score-a.total_score);const tourney=tournaments?.find(t=>t.year===year);const w=tourney?.champion_player||yr[0]?.player_id;const margin=yr.length>1?yr[0].total_score-yr[1].total_score:"—";const isActive=tourney?.status==='active';return(<tr key={year} style={{borderBottom:`1px solid ${C.borderLight}`,cursor:"pointer"}} onMouseEnter={e=>e.currentTarget.style.background="#f0ede7"} onMouseLeave={e=>e.currentTarget.style.background=""} onClick={()=>{setSelYear(year);setSelView("scores");setBracket(null);}}>
       <td style={{padding:"10px 0",fontSize:14,fontWeight:700,color:C.text,fontVariantNumeric:"tabular-nums"}}>{year}{isActive&&<span style={{fontSize:9,color:C.textMid,marginLeft:6}}>LIVE</span>}</td>
       <td style={{padding:"10px 0",fontSize:13,fontWeight:700,color:isActive?C.textLight:C[w]||C.text,letterSpacing:1}}>{isActive?"—":w}</td>
-      {PLAYERS_ALL.map(p=>{const pd=yr.find(r=>r.player_id===p);return(<td key={p} style={{textAlign:"right",padding:"10px 8px",fontSize:13,fontVariantNumeric:"tabular-nums",fontWeight:pd?.player_id===w&&!isActive?700:400,color:pd?(pd.player_id===w&&!isActive?C.text:C.textMid):C.textLight}}>{pd?pd.total_score:"—"}</td>);})}
+      {players.map(p=>{const pd=yr.find(r=>r.player_id===p);return(<td key={p} style={{textAlign:"right",padding:"10px 8px",fontSize:13,fontVariantNumeric:"tabular-nums",fontWeight:pd?.player_id===w&&!isActive?700:400,color:pd?(pd.player_id===w&&!isActive?C.text:C.textMid):C.textLight}}>{pd?pd.total_score:"—"}</td>);})}
       <td style={{textAlign:"right",padding:"10px 0",fontSize:13,color:C.textLight,fontVariantNumeric:"tabular-nums"}}>{isActive?"—":margin}</td>
     </tr>);})}</tbody></table>
   </div>);

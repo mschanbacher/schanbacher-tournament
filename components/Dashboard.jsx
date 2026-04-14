@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { C, RN, RMAX, PLAYERS_ALL } from "../lib/theme";
+import { C, RN, RMAX } from "../lib/theme";
 import { Lbl, Loading } from "../lib/ui";
 import StatusBar from "./StatusBar";
 import GameCell from "./GameCell";
 
-export default function Dashboard({ seasonResults, tournaments, mob, onRefresh, currentPlayer }) {
+export default function Dashboard({ seasonResults, tournaments, mob, onRefresh, currentPlayer, players }) {
   const[gameData,setGameData]=useState(null);const[schedule,setSchedule]=useState([]);
   const years=seasonResults?.length?[...new Set(seasonResults.map(r=>r.year))].sort((a,b)=>b-a):[];
   const latestYear=years[0]||null;
@@ -17,7 +17,7 @@ export default function Dashboard({ seasonResults, tournaments, mob, onRefresh, 
   const champCounts={};(tournaments||[]).filter(t=>t.status==='complete'&&t.champion_player).forEach(t=>{champCounts[t.champion_player]=(champCounts[t.champion_player]||0)+1;});
   return(<div style={{padding:mob?"20px 16px":"32px 40px",maxWidth:960,margin:"0 auto"}}>
     <div style={{marginBottom:40}}><Lbl>{isFinished?"Final Results":"Current Standings"}</Lbl><h2 style={{fontSize:32,color:C.text,margin:"4px 0 0",fontWeight:700,lineHeight:1}}>{latestYear}</h2>{isFinished&&latest[0]&&<div style={{fontSize:13,color:C.textMid,marginTop:6}}>Champion: <span style={{fontWeight:700,color:C[latest[0].player_id]}}>{latest[0].player_id}</span></div>}{!isFinished&&<div style={{fontSize:12,color:C.textMid,marginTop:6}}>Tournament in progress</div>}</div>
-    <StatusBar games={gameData} seasonResults={seasonResults} schedule={schedule} year={latestYear} tourney={latestTourney} players={PLAYERS_ALL} mob={mob}/>
+    <StatusBar games={gameData} seasonResults={seasonResults} schedule={schedule} year={latestYear} tourney={latestTourney} players={players} mob={mob}/>
     {gameData&&(()=>{
       const liveGames=gameData.filter(g=>g.status==="live").sort((a,b)=>(a.tipoff_time||"").localeCompare(b.tipoff_time||""));
       if(liveGames.length===0)return null;
@@ -27,7 +27,7 @@ export default function Dashboard({ seasonResults, tournaments, mob, onRefresh, 
       return(<div style={{marginBottom:28,border:"1px solid "+C.border,background:C.surface,padding:"16px 20px"}}>
         <div style={{fontSize:10,letterSpacing:2,color:C.textLight,textTransform:"uppercase",fontWeight:600,marginBottom:12}}>Live games</div>
         <div style={{display:"grid",gridTemplateColumns:mob?"1fr":"1fr 1fr",gap:10}}>
-          {liveGameObjs.map(g=><GameCell key={g.id} game={g} roundIdx={g.status==="live"?1:1} currentPlayer={currentPlayer} allPlayers={PLAYERS_ALL} roundLocked={true}/>)}
+          {liveGameObjs.map(g=><GameCell key={g.id} game={g} roundIdx={g.status==="live"?1:1} currentPlayer={currentPlayer} allPlayers={players} roundLocked={true}/>)}
         </div>
       </div>);
     })()}
@@ -35,7 +35,7 @@ export default function Dashboard({ seasonResults, tournaments, mob, onRefresh, 
       const finalGames=gameData.filter(g=>g.status==="final").sort((a,b)=>(a.tipoff_time||"").localeCompare(b.tipoff_time||"")||a.id-b.id);
       const pendingGames=gameData.filter(g=>g.status!=="final");
       const pickMap={};for(const p of pickData){if(!pickMap[p.player_id])pickMap[p.player_id]={};pickMap[p.player_id][p.game_id]=p;}
-      const playerData=PLAYERS_ALL.map(player=>{
+      const playerData=players.map(player=>{
         const pp=pickMap[player]||{};
         const seq=finalGames.map(g=>{const pick=pp[g.id];return pick?{correct:pick.points_earned>0,team1:g.team1,team2:g.team2,score1:g.score1,score2:g.score2,winner:g.winner,picked:pick.picked_team}:null;}).filter(Boolean);
         const pending=pendingGames.filter(g=>pp[g.id]).length;
@@ -63,6 +63,6 @@ export default function Dashboard({ seasonResults, tournaments, mob, onRefresh, 
     })()}
     <div style={{marginBottom:40}}>{latest.map((pl,i)=>(<div key={pl.player_id} style={{display:"flex",alignItems:"baseline",padding:"10px 0",borderBottom:`1px solid ${C.borderLight}`}}><span style={{width:24,fontSize:12,color:C.textLight,fontVariantNumeric:"tabular-nums"}}>{i+1}.</span><span style={{width:48,fontSize:14,fontWeight:700,color:C[pl.player_id]||C.text,letterSpacing:1}}>{pl.player_id}</span><div style={{flex:1,height:4,background:C.borderLight,marginRight:16}}><div style={{height:"100%",width:`${(pl.total_score/124)*100}%`,background:C[pl.player_id]||C.text,opacity:0.5}}/></div><span style={{fontSize:20,fontWeight:700,color:i===0?C.text:C.textMid,fontVariantNumeric:"tabular-nums",minWidth:36,textAlign:"right"}}>{pl.total_score}</span></div>))}</div>
     <div style={{marginBottom:40}}><Lbl>Round Breakdown</Lbl><div style={{overflowX:mob?"auto":"visible",WebkitOverflowScrolling:"touch"}}><table style={{width:"100%",borderCollapse:"collapse",minWidth:mob?600:"auto"}}><thead><tr style={{borderBottom:`2px solid ${C.text}`}}><th style={{textAlign:"left",padding:"6px 0",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>PLAYER</th>{RN.map((r,i)=><th key={r} style={{textAlign:"right",padding:"6px 6px",fontSize:9,color:C.textLight,letterSpacing:1,fontWeight:600}}>{r.toUpperCase()}<br/><span style={{fontWeight:400}}>{[1,2,3,4,5,6][i]}pt/{RMAX[i]}</span></th>)}<th style={{textAlign:"right",padding:"6px 0",fontSize:10,color:C.text,fontWeight:700}}>TOTAL</th></tr></thead><tbody>{latest.map((pl,pi)=>{const rounds=[pl.r1_score,pl.r2_score,pl.r3_score,pl.r4_score,pl.r5_score,pl.r6_score];return(<tr key={pl.player_id} style={{borderBottom:`1px solid ${C.borderLight}`}}><td style={{padding:"8px 0",fontWeight:700,fontSize:13,color:C[pl.player_id]||C.text,letterSpacing:1}}>{pl.player_id}</td>{rounds.map((v,i)=><td key={i} style={{textAlign:"right",padding:"8px 6px",fontSize:13,fontVariantNumeric:"tabular-nums",color:v==null||v===0?C.textLight:v===RMAX[i]?C.correct:C.text,fontWeight:v===RMAX[i]?700:400}}>{v??0}</td>)}<td style={{textAlign:"right",padding:"8px 0",fontSize:16,fontWeight:700,color:pi===0?C.text:C.textMid,fontVariantNumeric:"tabular-nums"}}>{pl.total_score}</td></tr>);})}</tbody></table></div></div>
-    <Lbl>All-Time Championships</Lbl><div style={{display:"flex",gap:40}}>{PLAYERS_ALL.map(p=>({p,c:champCounts[p]||0})).sort((a,b)=>b.c-a.c).map(({p,c})=>(<div key={p}><div style={{fontSize:36,fontWeight:700,color:C[p]||C.text,fontVariantNumeric:"tabular-nums"}}>{c}</div><div style={{fontSize:12,color:C.textLight,letterSpacing:1,fontWeight:600}}>{p}</div></div>))}</div>
+    <Lbl>All-Time Championships</Lbl><div style={{display:"flex",gap:40}}>{players.map(p=>({p,c:champCounts[p]||0})).sort((a,b)=>b.c-a.c).map(({p,c})=>(<div key={p}><div style={{fontSize:36,fontWeight:700,color:C[p]||C.text,fontVariantNumeric:"tabular-nums"}}>{c}</div><div style={{fontSize:12,color:C.textLight,letterSpacing:1,fontWeight:600}}>{p}</div></div>))}</div>
   </div>);
 }

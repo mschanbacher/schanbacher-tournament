@@ -1,6 +1,5 @@
 'use client'
-// The // vN deployment hack is no longer needed — App.jsx has been split into
-// separate component files, so Next.js properly detects changes to any of them.
+// Phase 3 Issue 14: Dynamic players from DB (replaces hardcoded PLAYERS_ALL)
 import App from '../components/App'
 
 export default function Page() {

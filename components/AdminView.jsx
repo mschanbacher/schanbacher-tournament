@@ -162,8 +162,9 @@ export default function AdminView({ activeYear, mob }) {
     for (let i = 0; i < regionList.length; i++) {
       await supabase.from("regions").insert({year: yr, name: regionList[i], position: i + 1, ff_pair: ffPairMap[regionList[i]] || null});
     }
-    for (const p of ["TLS","MJS","JRS"]) {
-      await supabase.from("season_results").insert({year: yr, player_id: p, total_score: 0});
+    const {data: dbPlayers} = await supabase.from("players").select("id");
+    for (const p of (dbPlayers || [])) {
+      await supabase.from("season_results").insert({year: yr, player_id: p.id, total_score: 0});
     }
     for (let rnd = 0; rnd <= 6; rnd++) {
       if (roundTimes[rnd]) {

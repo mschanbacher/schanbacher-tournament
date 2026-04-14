@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { C, PLAYERS_ALL } from "../lib/theme";
+import { C } from "../lib/theme";
 import { Loading } from "../lib/ui";
 
-export default function GamesTab({ tournaments, mob }) {
+export default function GamesTab({ tournaments, mob, players }) {
   const[data,setData]=useState(null);
   const[loading,setLoading]=useState(true);
   
@@ -30,7 +30,7 @@ export default function GamesTab({ tournaments, mob }) {
         
         // Per-player accuracy for this year
         const playerCorrect={};const playerTotal={};
-        for(const player of PLAYERS_ALL){playerCorrect[player]=0;playerTotal[player]=0;}
+        for(const player of players){playerCorrect[player]=0;playerTotal[player]=0;}
         
         const roundLabels3={0:"FF",1:"R1",2:"R2",3:"S16",4:"E8",5:"FF",6:"CH"};
         
@@ -38,7 +38,7 @@ export default function GamesTab({ tournaments, mob }) {
           if(!g.winner||!g.score1||!g.score2)continue;
           const margin=Math.abs(g.score1-g.score2);
           const gamePicks=pickMap[g.id]||{};
-          const playersWithPicks=PLAYERS_ALL.filter(p=>gamePicks[p]);
+          const playersWithPicks=players.filter(p=>gamePicks[p]);
           
           // Track accuracy
           for(const player of playersWithPicks){
@@ -67,7 +67,7 @@ export default function GamesTab({ tournaments, mob }) {
         }
         
         // Accuracy
-        for(const player of PLAYERS_ALL){
+        for(const player of players){
           if(playerTotal[player]>0){
             accuracyByPlayerYear.push({player,year,correct:playerCorrect[player],total:playerTotal[player],pct:Math.round((playerCorrect[player]/playerTotal[player])*100)});
           }
@@ -157,7 +157,7 @@ export default function GamesTab({ tournaments, mob }) {
       <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>Best tournament accuracy</div>
       <div style={{fontSize:12,color:C.textMid,marginBottom:12}}>Highest percentage of correct picks in a single tournament</div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16}}>
-        {PLAYERS_ALL.map(p=>{const best=data.accuracyByPlayerYear.find(a=>a.player===p);return best?(<div key={p} style={{background:C.surface,border:"1px solid "+C.borderLight,padding:"14px 16px"}}>
+        {players.map(p=>{const best=data.accuracyByPlayerYear.find(a=>a.player===p);return best?(<div key={p} style={{background:C.surface,border:"1px solid "+C.borderLight,padding:"14px 16px"}}>
           <div style={{fontSize:11,color:C.textLight,letterSpacing:1,fontWeight:600,marginBottom:6}}>{p} best</div>
           <div style={{fontSize:24,fontWeight:700,color:C[p],fontVariantNumeric:"tabular-nums"}}>{best.pct}%</div>
           <div style={{fontSize:11,color:C.textLight,marginTop:2}}>{best.correct}/{best.total} picks ({best.year})</div>

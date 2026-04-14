@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { C, PLAYERS_ALL } from "../lib/theme";
+import { C } from "../lib/theme";
 import { Lbl, Loading } from "../lib/ui";
 
-export default function HeadToHead({ seasonResults, tournaments, mob, currentPlayer }) {
-  const others=PLAYERS_ALL.filter(p=>p!==currentPlayer);
-  const [p2,setP2]=useState(others[0]||"MJS");
+export default function HeadToHead({ seasonResults, tournaments, mob, currentPlayer, players }) {
+  const others=players.filter(p=>p!==currentPlayer);
+  const [p2,setP2]=useState(others[0]||"");
   const p1=currentPlayer;
   const [agreementData,setAgreementData]=useState(null);
   useEffect(()=>{
@@ -98,7 +98,7 @@ export default function HeadToHead({ seasonResults, tournaments, mob, currentPla
   const maxMarginAll=yearData.length?Math.max(...yearData.map(d=>Math.abs(d.margin)),1):1;
   
   const sv={fontSize:14,fontWeight:500,fontVariantNumeric:"tabular-nums",minWidth:50,textAlign:"right"};
-  const otherPlayer=PLAYERS_ALL.filter(p=>p!==p1&&p!==p2)[0];
+  const otherPlayers=players.filter(p=>p!==p1&&p!==p2);
 
   return(<div style={{padding:mob?"20px 16px":"32px 40px",maxWidth:700,margin:"0 auto"}}>
     <div style={{marginBottom:4}}><Lbl>Head to head</Lbl></div>
@@ -215,15 +215,14 @@ export default function HeadToHead({ seasonResults, tournaments, mob, currentPla
       
       let threeAll=0,threeSplit=0,threeTotal=0;
       for(const yd of agreementData){
-        const pA=yd.picksByPlayer[PLAYERS_ALL[0]]||{};
-        const pB=yd.picksByPlayer[PLAYERS_ALL[1]]||{};
-        const pC=yd.picksByPlayer[PLAYERS_ALL[2]]||{};
+        const playerPicks=players.map(p=>yd.picksByPlayer[p]||{});
         for(const g of yd.games){
-          const a=pA[g.id],b=pB[g.id],c=pC[g.id];
-          if(a&&b&&c){
+          const picks=playerPicks.map(pp=>pp[g.id]).filter(Boolean);
+          if(picks.length===players.length){
             threeTotal++;
-            if(a===b&&b===c)threeAll++;
-            else if(a===b||a===c||b===c)threeSplit++;
+            const allSame=picks.every(pk=>pk===picks[0]);
+            if(allSame)threeAll++;
+            else if(new Set(picks).size<picks.length)threeSplit++;
           }
         }
       }

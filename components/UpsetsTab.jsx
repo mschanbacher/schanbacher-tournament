@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { C, PLAYERS_ALL } from "../lib/theme";
+import { C } from "../lib/theme";
 import { Loading } from "../lib/ui";
 
-export default function UpsetsTab({ tournaments, mob }) {
+export default function UpsetsTab({ tournaments, mob, players }) {
   const[data,setData]=useState(null);
   const[loading,setLoading]=useState(true);
   const UPSET_SEED_DIFF=3;
@@ -32,7 +32,7 @@ export default function UpsetsTab({ tournaments, mob }) {
         agreementRaw.push({year,picksByPlayer:playerHasPicks});
         let yearUpsetCount=0;
         const yearCalledBy={};
-        PLAYERS_ALL.forEach(p=>yearCalledBy[p]=0);
+        players.forEach(p=>yearCalledBy[p]=0);
         
         for(const g of games){
           if(!g.seed1||!g.seed2||!g.winner)continue;
@@ -47,7 +47,7 @@ export default function UpsetsTab({ tournaments, mob }) {
           yearUpsetCount++;
           const calledBy=[];
           const gamePicks=pickMap[g.id]||{};
-          for(const player of PLAYERS_ALL){
+          for(const player of players){
             if(gamePicks[player]===g.winner){
               calledBy.push(player);
               yearCalledBy[player]++;
@@ -78,7 +78,7 @@ export default function UpsetsTab({ tournaments, mob }) {
       const totalUpsets=allUpsets.length;
       const playerRates={};
       const playerBestYear={};
-      for(const player of PLAYERS_ALL){
+      for(const player of players){
         const playerYears=yearStats.filter(ys=>{
           const yd=agreementRaw.find(d=>d.year===ys.year);
           return yd&&yd.picksByPlayer[player];
@@ -97,7 +97,7 @@ export default function UpsetsTab({ tournaments, mob }) {
       
       const bestYears=[];
       for(const ys of yearStats){
-        for(const player of PLAYERS_ALL){
+        for(const player of players){
           if(ys.calledBy[player]>0)bestYears.push({player,year:ys.year,count:ys.calledBy[player]});
         }
       }
@@ -124,7 +124,7 @@ export default function UpsetsTab({ tournaments, mob }) {
       <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>Upset prediction rate</div>
       <div style={{fontSize:12,color:C.textMid,marginBottom:16}}>Correctly picking the lower seed to win (seed difference {UPSET_SEED_DIFF}+)</div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
-        {PLAYERS_ALL.map(p=>{const r=data.playerRates[p];return(<div key={p} style={{background:C.surface,border:"1px solid "+C.borderLight,padding:"14px 16px"}}>
+        {players.map(p=>{const r=data.playerRates[p];return(<div key={p} style={{background:C.surface,border:"1px solid "+C.borderLight,padding:"14px 16px"}}>
           <div style={{fontSize:11,color:C.textLight,letterSpacing:1,fontWeight:600,marginBottom:6}}>{p}</div>
           <div style={{fontSize:28,fontWeight:700,color:C[p],fontVariantNumeric:"tabular-nums"}}>{r.pct}%</div>
           <div style={{fontSize:11,color:C.textLight,marginTop:2}}>{r.called} of {r.possible} upsets called</div>
@@ -141,12 +141,12 @@ export default function UpsetsTab({ tournaments, mob }) {
         <thead><tr style={{borderBottom:"2px solid "+C.text}}>
           <th style={{textAlign:"left",padding:"6px 0",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>YEAR</th>
           <th style={{textAlign:"right",padding:"6px 8px",fontSize:10,color:C.textLight,letterSpacing:1,fontWeight:600}}>UPSETS</th>
-          {PLAYERS_ALL.map(p=><th key={p} style={{textAlign:"right",padding:"6px 8px",fontSize:10,color:C[p],letterSpacing:1,fontWeight:600}}>{p}</th>)}
+          {players.map(p=><th key={p} style={{textAlign:"right",padding:"6px 8px",fontSize:10,color:C[p],letterSpacing:1,fontWeight:600}}>{p}</th>)}
         </tr></thead>
         <tbody>{data.yearStats.map(ys=>(<tr key={ys.year} style={{borderBottom:"1px solid "+C.borderLight}}>
           <td style={{padding:"8px 0",fontSize:13,fontWeight:600,color:C.text,fontVariantNumeric:"tabular-nums"}}>{ys.year}</td>
           <td style={{textAlign:"right",padding:"8px 8px",fontSize:13,color:C.textMid,fontVariantNumeric:"tabular-nums"}}>{ys.upsets}</td>
-          {PLAYERS_ALL.map(p=><td key={p} style={{textAlign:"right",padding:"8px 8px",fontSize:13,fontWeight:600,color:ys.calledBy[p]>0?C[p]:C.textLight,fontVariantNumeric:"tabular-nums"}}>{ys.calledBy[p]>0?ys.calledBy[p]:"--"}</td>)}
+          {players.map(p=><td key={p} style={{textAlign:"right",padding:"8px 8px",fontSize:13,fontWeight:600,color:ys.calledBy[p]>0?C[p]:C.textLight,fontVariantNumeric:"tabular-nums"}}>{ys.calledBy[p]>0?ys.calledBy[p]:"--"}</td>)}
         </tr>))}</tbody>
       </table></div>
     </div>

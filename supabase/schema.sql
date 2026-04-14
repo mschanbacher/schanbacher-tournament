@@ -6,10 +6,16 @@
 CREATE TABLE players (
   id TEXT PRIMARY KEY,           -- 'TLS', 'MJS', 'JRS'
   name TEXT NOT NULL,            -- 'Tom', 'Mike', 'Jack'
+  color_light TEXT,              -- Player color for light theme (hex)
+  color_dark TEXT,               -- Player color for dark theme (hex)
   created_at TIMESTAMPTZ DEFAULT NOW()
+  -- TODO (Phase 5+): Add admin UI for managing players (add/remove/change colors)
 );
 
-INSERT INTO players (id, name) VALUES ('TLS', 'Tom'), ('MJS', 'Mike'), ('JRS', 'Jack');
+INSERT INTO players (id, name, color_light, color_dark) VALUES
+  ('TLS', 'Tom', '#12173F', '#6b72b3'),
+  ('MJS', 'Mike', '#F04E2C', '#f27a5e'),
+  ('JRS', 'Jack', '#1E4D42', '#5ba88e');
 
 -- Tournaments (one per year)
 CREATE TABLE tournaments (

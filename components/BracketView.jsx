@@ -4,9 +4,9 @@ import { C } from "../lib/theme";
 import { Lbl, Loading } from "../lib/ui";
 import BracketDisplay from "./BracketDisplay";
 
-export default function BracketView({ currentPlayer, activeYear, mob }) {
+export default function BracketView({ currentPlayer, activeYear, mob, players }) {
   const[bracket,setBracket]=useState(null);const[loading,setLoading]=useState(true);
-  const loadBracket=useCallback(()=>{if(activeYear)fetchBracketForYear(activeYear).then(b=>{setBracket(b);setLoading(false);}).catch(e=>{console.error(e);setLoading(false);});},[activeYear]);
+  const loadBracket=useCallback(()=>{if(activeYear)fetchBracketForYear(activeYear).then(b=>{if(b.players.length===0)b.players=players||[];setBracket(b);setLoading(false);}).catch(e=>{console.error(e);setLoading(false);});},[activeYear,players]);
   useEffect(()=>{loadBracket();},[loadBracket]);
   // Auto-refresh every 30 seconds if any games are live
   useEffect(()=>{if(!bracket)return;const hasLive=[...bracket.play_in,...Object.values(bracket.regions).flatMap(r=>[...r.r1,...r.r2,...r.s16,...r.e8]),...bracket.ff,bracket.ch].filter(Boolean).some(g=>g.status==="live");if(hasLive){const t=setInterval(loadBracket,30000);return()=>clearInterval(t);};},[bracket,loadBracket]);

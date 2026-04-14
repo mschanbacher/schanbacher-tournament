@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { fetchAllSeasonResults, fetchTournaments, getActiveYear } from "../lib/queries";
-import { C, setTheme } from "../lib/theme";
+import { fetchAllSeasonResults, fetchTournaments, fetchPlayers, getActiveYear } from "../lib/queries";
+import { C, setTheme, injectPlayerColors } from "../lib/theme";
 import { useIsMobile } from "../lib/hooks";
 import PlayerSelect from "./PlayerSelect";
 import Dashboard from "./Dashboard";
@@ -20,6 +20,7 @@ export default function App() {
   const [view, setView] = useState("dashboard");
   const [seasonResults, setSeasonResults] = useState(null);
   const [tournaments, setTournaments] = useState(null);
+  const [players, setPlayers] = useState(null);
   const [activeYear, setActiveYear] = useState(null);
   const [mounted, setMounted] = useState(false);
 
@@ -34,6 +35,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    fetchPlayers().then(setPlayers).catch(console.error);
     fetchAllSeasonResults().then(setSeasonResults).catch(console.error);
     fetchTournaments().then(ts => { setTournaments(ts); const ay = getActiveYear(ts); setActiveYear(ay); }).catch(console.error);
     const t = setInterval(() => { fetchAllSeasonResults().then(setSeasonResults).catch(console.error); }, 30000);
@@ -42,13 +44,17 @@ export default function App() {
 
   // Set the mutable theme reference before render
   setTheme(dark);
+  injectPlayerColors(players, dark);
+
+  // Derive sorted player ID list from DB rows
+  const playerList = (players || []).map(p => p.id);
 
   const mob = useIsMobile();
-  if (!mounted) return null;
+  if (!mounted || !players) return null;
 
   const selectPlayer = (p) => { setPlayer(p); if (typeof window !== "undefined") localStorage.setItem("schanbacher_player", p); };
   const logout = () => { setPlayer(null); if (typeof window !== "undefined") localStorage.removeItem("schanbacher_player"); };
-  if (!player) return <PlayerSelect onSelect={selectPlayer} />;
+  if (!player) return <PlayerSelect onSelect={selectPlayer} players={playerList} />;
 
   const baseTabs = [
     { id: "dashboard", label: "Dashboard" },
@@ -101,12 +107,12 @@ export default function App() {
         </div>
       </nav>
       <div style={{ zoom: fontScale }}>
-        {view === "dashboard" && <Dashboard seasonResults={seasonResults} tournaments={tournaments} mob={mob} currentPlayer={player} />}
-        {view === "bracket" && <BracketView currentPlayer={player} activeYear={activeYear} mob={mob} />}
+        {view === "dashboard" && <Dashboard seasonResults={seasonResults} tournaments={tournaments} mob={mob} currentPlayer={player} players={playerList} />}
+        {view === "bracket" && <BracketView currentPlayer={player} activeYear={activeYear} mob={mob} players={playerList} />}
         {view === "picks" && <PicksView currentPlayer={player} activeYear={activeYear} tournaments={tournaments} mob={mob} />}
-        {view === "history" && <HallOfFame seasonResults={seasonResults} tournaments={tournaments} currentPlayer={player} mob={mob} />}
-        {view === "records" && <RecordsView seasonResults={seasonResults} tournaments={tournaments} mob={mob} />}
-        {view === "h2h" && <HeadToHead seasonResults={seasonResults} tournaments={tournaments} mob={mob} currentPlayer={player} />}
+        {view === "history" && <HallOfFame seasonResults={seasonResults} tournaments={tournaments} currentPlayer={player} mob={mob} players={playerList} />}
+        {view === "records" && <RecordsView seasonResults={seasonResults} tournaments={tournaments} mob={mob} players={playerList} />}
+        {view === "h2h" && <HeadToHead seasonResults={seasonResults} tournaments={tournaments} mob={mob} currentPlayer={player} players={playerList} />}
         {view === "admin" && player === "MJS" && <AdminView activeYear={activeYear} mob={mob} />}
       </div>
       <footer style={{ padding: "24px 40px", textAlign: "center", fontSize: 10, color: C.textLight, letterSpacing: 1, marginTop: 40 }}>Copyright 2026 — Field Development</footer>

@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { C, PLAYERS_ALL } from "../lib/theme";
+import { C } from "../lib/theme";
 import { Loading } from "../lib/ui";
 
-export default function StreaksTab({ completedResults, tournaments, mob }) {
+export default function StreaksTab({ completedResults, tournaments, mob, players }) {
   const [streakData,setStreakData]=useState(null);
   const [loading,setLoading]=useState(true);
   
@@ -30,7 +30,7 @@ export default function StreaksTab({ completedResults, tournaments, mob }) {
         const finalGames=(games||[]).filter(g=>g.status==="final");
         const pendingGames=(games||[]).filter(g=>g.status!=="final");
         
-        for(const player of PLAYERS_ALL){
+        for(const player of players){
           const playerPicks=pickMap[player]||{};
           const sequence=[];
           for(const g of finalGames){
