@@ -15,5 +15,11 @@
     "app/api/import-bracket/route.js": {
       "maxDuration": 30
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/keep-alive",
+      "schedule": "0 12 * * *"
+    }
+  ]
 }
